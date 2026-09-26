@@ -1,4 +1,4 @@
-const LOT_SIZE = 100;
+const SCALE = 1000000;
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const yen = (minor, decimals = 0) => minor == null ? '—' : new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',minimumFractionDigits:decimals,maximumFractionDigits:decimals}).format(minor/100);
@@ -24,15 +24,14 @@ async function api(action, body, params = {}) {
 function closeDialog() { if(!state.busy) { state.request++; $('#dialog').close(); } }
 function showDialog(html) { $('#dialog').innerHTML=`<div class="dialog-content">${html}</div>`; if(!$('#dialog').open) $('#dialog').showModal(); }
 const dialogHead = title => `<div class="dialog-header"><h2 id="dialog-title">${title}</h2><button class="close" data-action="close" aria-label="閉じる">${icon('close')}</button></div>`;
-const currentProvider = () => state.account?.market || state.config?.provider || 'demo';
+const currentProvider = () => 'multi';
 const wrongOrigin = () => /^https?:$/.test(location.protocol) && state.config?.publicOrigin && location.origin !== state.config.publicOrigin;
 function originNotice() {
  return wrongOrigin() ? `<div class="notice error">このURLでは口座の作成・売買はできません。<a href="${esc(state.config.publicOrigin)}" rel="noreferrer">本番サイトを開く</a></div>` : '';
 }
 function environment() {
- const c=state.config;const provider=currentProvider();$('#environment').classList.toggle('real',provider==='yahoo');
- const label=provider==='demo'?'DEMO · 架空の固定価格で練習中（実際の単位価ではありません）':c?.marketStatus==='enabled'?'データ提供元参考単位価 · 遅延あり／リアルタイム保証なし':'実単位価の配信は停止中 · 口座と履歴は保持されています';
- $('#environment').textContent=c?`${label}${c.storage==='local'?' · ローカル保存':''}`:'サーバーに接続できません';
+ const c=state.config;$('#environment').classList.add('real');
+ $('#environment').textContent=c?'CRYPTO / FX · CoinGecko / Frankfurter参考価格 · 仮想売買専用':'サーバーに接続できません';
 }
 
 const empty = (title,text,action,label,ico='wallet') => `<div class="card empty"><div class="empty-icon">${icon(ico)}</div><h3>${title}</h3><p>${text}</p>${action?`<button class="primary" data-action="${action}">${label}${icon('arrow')}</button>`:''}</div>`;
@@ -65,12 +64,12 @@ function renderAssets() {
  <div class="tip"><strong>まずは一単元。自分のペースで。</strong><br>仮想資産単位のシンプルな練習モード。信用取引・空売りはありません。</div>`;
 }
 function holdingRow(p,q) {
- const value=q?q.priceMinor*p.quantity/SCALE:null; const gain=value==null?null:value-p.costMinor;
- return `<button class="stock-row" data-symbol="${esc(p.symbol)}" data-side="sell"><span class="stock-avatar">${esc(p.symbol.slice(0,4))}</span><span class="stock-info"><span class="stock-name">${esc(p.name)}</span><span class="stock-meta">${p.quantity/SCALE.toLocaleString()}単位 · 平均 ${yen(p.costMinor/p.quantity/SCALE,2)}</span></span><span class="stock-value">${yen(value,2)}<small class="${tone(gain)}">${gain==null?'単位価取得不可':signed(gain)}</small></span>${icon('chevron','chevron')}</button>`;
+ const value=q?Math.round(q.priceMinor*p.quantity/SCALE):null; const gain=value==null?null:value-p.costMinor;
+ return `<button class="stock-row" data-symbol="${esc(p.symbol)}" data-side="sell"><span class="stock-avatar">${esc(p.symbol.slice(0,4))}</span><span class="stock-info"><span class="stock-name">${esc(p.name)}</span><span class="stock-meta">${(p.quantity/SCALE).toLocaleString(undefined,{maximumFractionDigits:6})} ${esc(p.unit||'')} · 平均 ${yen(p.costMinor*SCALE/p.quantity,2)}</span></span><span class="stock-value">${yen(value,2)}<small class="${tone(gain)}">${gain==null?'単位価取得不可':signed(gain)}</small></span>${icon('chevron','chevron')}</button>`;
 }
 function renderSearch() {
- $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>銘柄を探す</h1></div><span class="pill">Crypto / FX・現物</span></div>
- ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="銘柄名・コードで検索" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div><p class="search-hint">例：トヨタ / 7203 / NTT</p>
+ $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>Crypto / FXを探す</h1></div><span class="pill">Crypto / FX・現物</span></div>
+ ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="BTC / ETH / USDJPY など" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div><div class="filter" aria-label="資産種別"><button data-asset-type="all" class="${state.assetType==='all'?'active':''}">すべて</button><button data-asset-type="crypto" class="${state.assetType==='crypto'?'active':''}">仮想通貨</button><button data-asset-type="fx" class="${state.assetType==='fx'?'active':''}">為替</button></div>
  ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、仮想資産単位の仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${currentProvider()==='demo'?'デモ用20銘柄':'データ提供元検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
  <div class="intro">${icon('shield')}<div><strong>買えるのは、いま持っている資金の範囲だけ。</strong><small>仮想資産単位。初期10万円では、1単位1,000円以下の銘柄を購入できます。</small></div></div>`;
 }
@@ -80,7 +79,7 @@ function searchRows() {
 let searchTimer; let searchVersion=0;
 async function searchStocks(query) {
  if(!state.account) return; const id=++searchVersion;
- try { const result=await api('search',undefined,{q:query}); if(id!==searchVersion)return; state.search=result.items; if(state.tab==='trade'&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
+ try { const result=await api('search',undefined,{q:query,type:state.assetType}); if(id!==searchVersion)return; state.search=result.items; if(state.tab==='trade'&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
  catch(error){if(id===searchVersion&&$('#search-results'))$('#search-results').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
 }
 function renderRanking() {
@@ -148,26 +147,29 @@ async function openStock(symbol,side='buy') {
  try { const result=await api('quote',undefined,{symbol});if(id!==state.request)return;state.stock=result;renderStock(); }
  catch(error){if(id===state.request)showDialog(`${dialogHead('単位価を取得できません')}<div class="notice error">${esc(error.message)}</div><p class="fineprint">価格が確認できるまで注文はできません。</p>`);}
 }
-function renderStock(quantity=LOT_SIZE) {
- const {quote:q}=state.stock;const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0;
- showDialog(`${dialogHead(esc(q.name))}<span class="muted"><small>${esc(q.symbol)} · 現物 / 仮想資産単位</small></span><div class="quote-price">${yen(q.priceMinor,2)}</div><p class="quote-meta">${q.source==='demo'?'DEMO · 実際の単位価ではない架空の固定価格':`参考価格 · ${stamp(q.quoteAt)} JST · ${q.delayMinutes==null?'遅延時間不明':`${q.delayMinutes}分遅延`}`}</p>
- ${q.source==='yahoo'&&q.referenceOnly?`<div class="notice">${q.sessionState==='outside-regular'?'取引時間外の参考値':'取引時間情報を確認できない参考値'}での練習です。上の価格時刻を確認してください。</div>`:''}
- <div class="trade-tabs" aria-label="売買区分"><button data-side-toggle="buy" class="${state.side==='buy'?'active':''}" aria-pressed="${state.side==='buy'}">買う</button><button data-side-toggle="sell" class="sell ${state.side==='sell'?'active':''}" aria-pressed="${state.side==='sell'}">売る</button></div>
- <form id="trade-form"><label class="field"><span>単位数 <small class="muted">仮想資産 = 1単元</small></span><div class="quantity-input"><button type="button" data-step="-100" aria-label="仮想資産減らす">−</button><input name="quantity" id="quantity" type="number" inputmode="numeric" min="100" max="1000000" step="100" value="${quantity}" required aria-label="注文単位数"><button type="button" data-step="100" aria-label="仮想資産増やす">+</button><span></span></div></label><div class="quantity-presets"><button type="button" data-quantity="100">仮想資産</button><button type="button" data-quantity="200">200単位</button><button type="button" data-quantity="500">500単位</button><button type="button" data-quantity="max">${state.side==='buy'?'買付可能数':'売却可能数'}</button></div>
- <dl class="details"><div><dt>1単元（仮想資産）の金額</dt><dd>${yen(q.priceMinor*LOT_SIZE,2)}</dd></div><div><dt>買付余力</dt><dd>${yen(state.account.state.cashMinor,2)}</dd></div><div><dt>保有数</dt><dd>${held.toLocaleString()}単位</dd></div><div><dt>概算${state.side==='buy'?'購入':'売却'}金額</dt><dd id="estimate" class="trade-estimate"></dd></div></dl><div id="trade-error" role="alert"></div><button class="${state.side==='buy'?'primary':'danger-button'} full" id="order-next" type="submit">${state.side==='buy'?'購入':'売却'}内容を確認</button></form>
- <button class="link-button" data-action="refresh-quote">単位価を更新</button><p class="fineprint">参考価格で即時に仮想成立します。営業日・営業時間の判定による注文制限はありません。手数料・税金・板・単位式分割・配当は再現しません。</p>`);updateEstimate();
+function renderStock(quantity=null) {
+ const {quote:q}=state.stock;const position=state.account.state.positions.find(p=>p.symbol===q.symbol);const held=position?.quantity||0;
+ const defaultHuman=quantity??(q.type==='crypto'?(q.symbol==='BTC'?0.001:q.symbol==='ETH'?0.01:q.symbol==='SOL'?0.1:10):100);
+ showDialog(`${dialogHead(esc(q.name))}<span class="muted"><small>${esc(q.symbol)} · ${q.type==='crypto'?'仮想通貨':'為替'} · 現物のみ</small></span><div class="quote-price">${yen(q.priceMinor,2)}</div><p class="quote-meta">${esc(q.attribution)}参考価格 · ${stamp(q.quoteAt)} JST</p>
+ <div class="notice">Data provided by <a href="${esc(q.attributionUrl)}" target="_blank" rel="noreferrer">${esc(q.attribution)}</a></div>
+ <div class="trade-tabs"><button data-side-toggle="buy" class="${state.side==='buy'?'active':''}">買う</button><button data-side-toggle="sell" class="sell ${state.side==='sell'?'active':''}">売る</button></div>
+ <form id="trade-form"><label class="field"><span>数量（${esc(q.unit)}）</span><input name="quantity" id="quantity" type="number" inputmode="decimal" min="${q.step}" step="${q.step}" value="${defaultHuman}" required></label>
+ <dl class="details"><div><dt>参考価格</dt><dd>${yen(q.priceMinor,2)} / ${esc(q.unit)}</dd></div><div><dt>買付余力</dt><dd>${yen(state.account.state.cashMinor,2)}</dd></div><div><dt>保有数</dt><dd>${(held/SCALE).toLocaleString(undefined,{maximumFractionDigits:6})} ${esc(q.unit)}</dd></div><div><dt>概算金額</dt><dd id="estimate"></dd></div></dl><div id="trade-error"></div><button class="${state.side==='buy'?'primary':'danger-button'} full" id="order-next" type="submit">${state.side==='buy'?'購入':'売却'}内容を確認</button></form>
+ <button class="link-button" data-action="refresh-quote">価格を更新</button><p class="fineprint">実際のお金・暗号資産・外貨は動きません。仮想売買専用です。</p>`);updateEstimate();
+}
+function orderUnits(){
+ const human=Number($('#quantity')?.value);if(!Number.isFinite(human)||human<=0)return null;const units=Math.round(human*SCALE);return Number.isSafeInteger(units)&&units>0?units:null;
 }
 function updateEstimate() {
- if(!$('#quantity')||!state.stock)return;const n=Number($('#quantity').value);const q=state.stock.quote;
- const valid=Number.isSafeInteger(n)&&n>=LOT_SIZE&&n<=1_000_000&&n%LOT_SIZE===0;const cost=valid?q.priceMinor*n:null;
- $('#estimate').textContent=yen(cost,2);const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0;
- const error=state.pending?'前の注文の結果を確認してから、新しい注文を行ってください。':!valid?'100〜1,000,000単位の範囲で、仮想資産単位で入力してください。':state.side==='buy'&&cost>state.account.state.cashMinor?`買付余力が不足しています。1単元（仮想資産）には${yen(q.priceMinor*LOT_SIZE,2)}が必要です。`:state.side==='sell'&&n>held?'保有単位数を超えて売ることはできません。':'';
+ if(!$('#quantity')||!state.stock)return;const units=orderUnits(),q=state.stock.quote;const cost=units?Math.round(q.priceMinor*units/SCALE):null;
+ $('#estimate').textContent=yen(cost,2);const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.quantity||0;
+ const error=state.pending?'前の注文結果を確認してください。':!units?'数量を正しく入力してください。':state.side==='buy'&&cost>state.account.state.cashMinor?'買付余力が不足しています。':state.side==='sell'&&units>held?'保有数量を超えて売却できません。':'';
  $('#trade-error').innerHTML=error?`<div class="notice error">${error}</div>`:'';$('#order-next').disabled=!!error;
 }
-function confirmOrder(quantity) {
- const {quote:q,quoteToken}=state.stock;const side=state.side;
- const payload={symbol:q.symbol,side,quantity,quoteToken,requestId:crypto.randomUUID()};
- showDialog(`${dialogHead('仮想売買を確認')}<div class="confirm-icon">${icon('check')}</div><h3>${esc(q.name)}を${quantity.toLocaleString()}単位${side==='buy'?'購入':'売却'}</h3><dl class="details"><div><dt>参考価格</dt><dd>${yen(q.priceMinor,2)}</dd></div><div><dt>${side==='buy'?'購入':'売却'}金額</dt><dd class="trade-estimate">${yen(q.priceMinor*quantity,2)}</dd></div><div><dt>成立後の現金</dt><dd>${yen(state.account.state.cashMinor+(side==='buy'?-1:1)*q.priceMinor*quantity,2)}</dd></div></dl><div class="notice info">実際のお金や単位式は動きません。${q.source==='demo'?'現在は架空価格のデモです。':''}</div><div id="confirm-error" role="alert"></div><div class="actions"><button class="secondary" data-action="back-order">戻る</button><button class="${side==='buy'?'primary':'danger-button'}" id="submit-order">仮想${side==='buy'?'購入':'売却'}する</button></div>`);
+function confirmOrder(units) {
+ const {quote:q,quoteToken}=state.stock,side=state.side,total=Math.round(q.priceMinor*units/SCALE),human=units/SCALE;
+ const payload={symbol:q.symbol,side,quantity:units,quoteToken,requestId:crypto.randomUUID()};
+ showDialog(`${dialogHead('仮想売買を確認')}<div class="confirm-icon">${icon('check')}</div><h3>${esc(q.name)}を${human.toLocaleString(undefined,{maximumFractionDigits:6})} ${esc(q.unit)} ${side==='buy'?'購入':'売却'}</h3><dl class="details"><div><dt>参考価格</dt><dd>${yen(q.priceMinor,2)}</dd></div><div><dt>金額</dt><dd>${yen(total,2)}</dd></div><div><dt>成立後の現金</dt><dd>${yen(state.account.state.cashMinor+(side==='buy'?-1:1)*total,2)}</dd></div></dl><div class="notice info">実際の資産は動きません。</div><div id="confirm-error"></div><div class="actions"><button class="secondary" data-action="back-order">戻る</button><button class="${side==='buy'?'primary':'danger-button'}" id="submit-order">仮想${side==='buy'?'購入':'売却'}する</button></div>`);
  $('#submit-order').addEventListener('click',()=>submitOrder(payload),{once:true});
 }
 async function submitOrder(payload=state.pending) {
@@ -198,7 +200,7 @@ async function submitUsername(form){
  try{const result=await api('username',{username:String(new FormData(form).get('username')||'')});state.account=result.account;state.busy=false;closeDialog();render();toast('ユーザーネームを変更しました。');}
  catch(error){state.busy=false;button.disabled=false;$('#username-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
 }
-document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='username-form'){event.preventDefault();submitUsername(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
+document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='username-form'){event.preventDefault();submitUsername(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();const units=orderUnits();if(units&&!$('#order-next').disabled)confirmOrder(units);}});
 document.addEventListener('input',event=>{if(event.target.id==='quantity')updateEstimate();if(event.target.id==='search'){state.query=event.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchStocks(state.query),300);}});
 document.addEventListener('click',async event=>{
  const b=event.target.closest('button');if(!b||b.disabled||state.busy)return;
@@ -206,8 +208,7 @@ document.addEventListener('click',async event=>{
  if(b.dataset.symbol){openStock(b.dataset.symbol,b.dataset.side||'buy');return;}
  if(b.dataset.filter){state.filter=b.dataset.filter;renderHistory();return;}
  if(b.dataset.sideToggle){state.side=b.dataset.sideToggle;renderStock();return;}
- if(b.dataset.step){$('#quantity').value=String(Math.min(1_000_000,Math.max(LOT_SIZE,(Math.floor(Number($('#quantity').value)/LOT_SIZE)||0)*LOT_SIZE+Number(b.dataset.step))));updateEstimate();return;}
- if(b.dataset.quantity){const q=state.stock.quote;$('#quantity').value=b.dataset.quantity==='max'?String(Math.min(1_000_000,Math.floor((state.side==='buy'?state.account.state.cashMinor/q.priceMinor:state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0)/LOT_SIZE)*LOT_SIZE)):b.dataset.quantity;updateEstimate();return;}
+
  try {
  switch(b.dataset.action){
   case 'close':closeDialog();break;
