@@ -28,7 +28,7 @@ with sync_playwright() as p:
         assert "script-src 'self'" in r.headers['content-security-policy']
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
     assert page.locator('nav button').count()==5
-    assert page.locator('nav button').all_text_contents()==['資産','仮想通貨','FX','ランキング','履歴・口座']
+    assert page.locator('nav button').all_text_contents()==['資産','仮想通貨','FX','ランキング','履歴・仮想口座']
     page.get_by_role('button',name='仮想口座を作る',exact=True).click()
     username='ui_'+uuid.uuid4().hex[:10]
     password='Ui7!qZ' # Ephemeral local test fixture only.
