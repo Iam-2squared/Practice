@@ -5,9 +5,9 @@ select c.relname as table_name,c.relrowsecurity as rls,
  has_table_privilege('service_role',c.oid,'select') as server_select
 from pg_class c join pg_namespace n on n.oid=c.relnamespace
 where n.nspname='public' and c.relname in
- ('practice_accounts','practice_sessions','practice_trades','practice_rate_buckets');
+ ('practice_accounts','practice_sessions','practice_trades','practice_rate_buckets','practice_wallets','practice_asset_trades','practice_quote_cache','practice_chart_cache','practice_provider_budgets');
 select p.proname,p.prosecdef as security_definer,
  has_function_privilege('anon',p.oid,'execute') as anon_execute,
  has_function_privilege('service_role',p.oid,'execute') as server_execute
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-where n.nspname='public' and p.proname in ('practice_commit_trade','practice_rate_limit','practice_valid_state');
+where n.nspname='public' and p.proname in ('practice_commit_trade','practice_rate_limit','practice_valid_state','practice_claim_chart','practice_save_chart','practice_fail_chart');

@@ -1,38 +1,39 @@
-# Practice 0.4 — Crypto / FX 最新状況
+# Practice 0.5 — Crypto / FX price charts
 
-保存時刻: 2026-09-26 21:17 JST
-作業ブランチ: `feature/crypto-fx-only`
-今回の変更前HEAD: `dc5c3785ee6a20a6febf72035068099b8f6123bf`
+保存時刻: 2026-09-26 23:45 JST
 
-## 実装済み
+作業ブランチ: `feature/price-charts`
 
-- 資産 / 仮想通貨 / FX / ランキング / 履歴・アカウントの5タブ。狭い画面の右端ラベルは「履歴・口座」。
-- 資産画面は総資産・現金・損益・最近の売買記録。保有銘柄一覧、チャート、お気に入りは表示しない。
-- Crypto: BTC / ETH / SOL / XRP、CoinGecko Demo、円建て、小数数量。
-- FX: USD / EUR / GBP / AUD の円建て日次参考レート。Frankfurter。リアルタイムFXではない。レバレッジ・空売りなし。
-- Yahoo取得・日本株の新規売買を新ランタイムから撤去。旧履歴は閲覧専用で保持。
-- 同じログイン情報とユーザーネームでCrypto/FX専用10万円ウォレットを利用。旧市場の残高・保有・履歴は削除や書換えをしない。
-- 6文字以上のパスワード、ユーザーネーム変更、全口座ランキング、口座削除時の全記録・セッション連鎖削除。
-- 金額は整数演算。買付は0.01円単位で切上げ、売却・評価は切捨て。価格・原価を浮動小数点乗算で約定しない。
-- 署名付き価格、60秒の注文有効期限、元データ日時の再確認、二重注文対策、資金・保有数量チェック。
-- 全サーバー共通の価格キャッシュと取得ロック。Cryptoは最大5分に1回4銘柄一括、FXは4時間キャッシュ。取得失敗・キー未設定時の架空価格への切替なし。
+開始時main: `8797e89337cf703bbb45a8d4f1dfc8b22d51b8f3`
+
+## 現在の状態
+
+- 0.4の5タブ、円建て現物仮想売買、10万円ウォレット、認証、ランキング、履歴、口座削除、資産ごとのコンパクトな保有損益を維持。
+- BTC / ETH / SOL / XRPの詳細に24H / 7D / 30D / 90D / 1Yラインチャートを実装。履歴点の実粒度は約5分 / 約1時間 / 日次として表示し、OHLCや1分足には見せない。
+- USD/JPY / EUR/JPY / GBP/JPY / AUD/JPYの詳細に7D / 1M / 3M / 1Y / 5Yラインチャートを実装。Frankfurterの日次営業日だけを表示し、休日を補間しない。
+- 選択期間の騰落率はチャート先頭値基準。資産画面の取得原価基準損益とは別。マウス、タッチ、キーボードで各点の日時・価格を確認可能。
+- 読込中、空データ、取得失敗を区別。チャート失敗時も現在価格と有効な注文は独立して利用可能。チャート値を価格トークン・約定・評価原価へ渡さない。
+- 期間切替はチャート領域だけを更新し、数量入力を保持。request/epoch/銘柄/期間を照合し、高速切替、モーダル閉鎖、銘柄変更、ログアウト後の古い応答を破棄。
+- Crypto履歴は銘柄・期間別共有キャッシュ（24H: 1時間、7〜90D: 6時間、1Y: 24時間）。FX履歴は24時間。全期間・全銘柄の先読み、背景更新、無限再試行なし。
+- CoinGeckoチャート新規取得はDBでUTC月500 callに制限。現在価格の最大8,928 call/月と合わせてアプリ管理上9,428 call/月以内に抑え、現在価格用キャッシュを履歴から分離。
+- 追加DBは `practice_chart_cache` と `practice_provider_budgets` のみ。既存口座、認証、ウォレット、保有、原価、取引履歴を更新・削除しない。
 
 ## 確認済み
 
-- Node 22: 87テスト / 87 PASS。
-- 21 JavaScriptファイルの構文確認PASS、ビルドPASS。
-- 隔離レンダラー＋純粋なモックAPIで5タブ、登録・BTC売買・FX購入・履歴・改名・再ログイン・削除、320/360/390/430/768/1280pxの横はみ出しとタップ高さを確認。未捕捉エラー0。
-- この表示テストは実HTTP、Cookie、Supabase接続、実価格のE2Eではない。通常HTTPのブラウザーテストはGitHub CIに設定済み。
-- Supabase追加移行 `practice_crypto_fx_wallets_v04` 適用成功。新しいwallet/ledger/cacheはRLS有効・ブラウザロール権限なし。
-- service_roleで新規ウォレット、BTC/FX売買、CAS、重複注文、改ざん拒否、旧新履歴ページ分け、削除連鎖、キャッシュ排他を実SQL確認PASS。テストfixtureはすべてROLLBACK。
-- 既存2口座を再確認。Ownerの旧現金75,410円・旧保有1・旧履歴3件は保持。もう1口座も保持。新ウォレットは各10万円・保有0・新規取引0。
-- Security AdvisorはERROR/WARNなし。7件のRLS-policy未定義INFOはサーバー専用deny-by-default設計。
+- 開始時GitHub: mainは上記SHA、未完了PR・同名チャートブランチなし。既存mainのVercel checkはsuccess。
+- 開始時Supabase: `ACTIVE_HEALTHY`、publicに既存2口座・Crypto/FX取引2件。migration直前には既存3口座・取引4件で、他利用とみられる増分も含めて変更対象外として保護。
+- 公式仕様確認: CoinGecko Demoは10,000 credits/月、100 calls/min、日次/時間履歴1年、5分履歴1日。Frankfurter v1は日次時系列を提供し、v2推奨だが継続稼働と記載。
+- Node実装テスト: 101 / 101 PASS。履歴形式、日時、順序、値、空/欠損/異常/過大、期間拒否、429/timeout、同時取得、共有cache、月間guard、現在価格との独立、売買/認証/ランキング回帰を含む。
+- `npm run check`: 21 JavaScript files PASS。`npm run build`: PASS。`git diff --check`: PASS。
+- HTTPブラウザテストは、期間高速切替、数量保持、pointer/touch、320〜1280px、閉鎖/ログアウト競合を追加済み。
+- PR [#5](https://github.com/Iam-2squared/Practice/pull/5) を作成。head `b955604c93cfc8f4bc30345498e73bc835fef06e` のCI Run `36249392595` は app / database / mobile-ui が全成功し、Vercel previewもReady。
+- Production Supabaseへmigration `20260926144350 practice_price_charts_v05` を適用。適用前後で既存3口座・4取引・3ウォレット・4セッションの件数は不変。新規2テーブルはRLS有効、anon/authenticated権限なし、service_role限定。claim関数はtransaction rollback内で動作確認。
+- Supabase advisorはperformance指摘なし。securityのINFOは、server-onlyテーブルでRLSを有効にしbrowser向けpolicyを意図的に置かない既存方式（新規2テーブルを含む）。
 
-## 未完了・外部確認待ち
+## 未完了・次の手順
 
-- この保存時点で新コードのmainへのマージ・本番反映・最新GitHub CI成功は未確認。旧ブランチCIはジョブの実行ステップがないまま失敗していた。理由は未確定で、テストの失敗と断定しない。
-- Vercel管理コネクタはアクセス可能チーム0件。環境変数を書き換えたとは扱わない。既存Git連携によるデプロイとは別。
-- CoinGecko無料Demo APIキーをVercelの `COINGECKO_DEMO_API_KEY` に設定する必要がある。秘密値をGitHub・チャット・フロントエンドへ保存しない。未設定時はCryptoだけ停止し、FXと口座操作は独立して利用可能。
-- 実データ取得と新しい本番APIの売買E2Eは未実施。利用条件は `docs/MARKET_DATA.md` を参照。無料プランによるあらゆる第三者配信の許諾を保証する実装ではない。
+- ローカル環境にはChromium/Postgresがなく、Playwright Chromium取得も実行環境の配布URL制限で失敗。代わりにGitHub CIの実HTTP Playwright `mobile-ui` とPostgres `database` を成功確認済み。
+- PR #5の最終文書コミット後CI、merge、main CI、Vercel本番反映、実CoinGecko Demo / Frankfurterチャート、本番スマホ/PC操作は未確認。
+- Vercel管理コネクタはチームscope 403。環境変数や課金設定は変更せず、GitHub連携check、公開HTTPS、runtime errorで検証する。
 
-次: この検証済みソースをまとめてコミット → CI確認 → 必須チェックを満たした場合のみmainへマージ → 本番configとFXの疎通確認。鍵や課金を推測で変更しない。
+次: 最終文書コミットのCI → PR #5 merge → main CI/Vercel → 隔離した一時口座で実データ表示を確認し、売買せず削除する。
