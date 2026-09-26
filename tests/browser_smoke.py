@@ -29,7 +29,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
     assert page.locator('nav button').count()==5
     assert page.locator('nav button').all_text_contents()==['資産','仮想通貨','FX','ランキング','履歴・口座']
-    page.get_by_role('button',name='口座を作る',exact=True).click()
+    page.get_by_role('button',name='仮想口座を作る',exact=True).click()
     username='ui_'+uuid.uuid4().hex[:10]
     password='Ui7!qZ' # Ephemeral local test fixture only.
     page.locator('[name=username]').fill(username)
@@ -115,14 +115,14 @@ with sync_playwright() as p:
     page.locator('[data-tab=history]').click();page.locator('[data-action=account]').click();page.get_by_role('button',name='ログアウト',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
     page.wait_for_timeout(350)
-    expect(page.get_by_role('button',name='口座を作る',exact=True)).to_be_visible()
-    page.get_by_role('button',name='すでに口座がある方はログイン').click()
+    expect(page.get_by_role('button',name='仮想口座を作る',exact=True)).to_be_visible()
+    page.get_by_role('button',name='すでに仮想口座がある方はログイン').click()
     page.locator('#password').fill(password);page.locator('#auth-form [type=submit]').click();expect(page.locator('#dialog')).not_to_be_visible()
     page.locator('[data-tab=history]').click();expect(page.locator('.history-row')).to_have_count(3)
     page.locator('[data-action=account]').click();page.locator('[data-action=delete-account]').click()
     page.locator('#delete-form [name=password]').fill(password);page.locator('#delete-form input[type=checkbox]').check();page.locator('#delete-form [type=submit]').click()
     expect(page.locator('#dialog')).not_to_be_visible()
-    expect(page.get_by_role('button',name='口座を作る',exact=True)).to_be_visible()
+    expect(page.get_by_role('button',name='仮想口座を作る',exact=True)).to_be_visible()
     assert not errors, errors
     result={'result':'PASS','mode':'isolated-renderer-with-mock-api' if isolated else 'HTTP-real-API-fixtures','viewports':[320,360,390,430,768,1280],'tabs':5,'holdingsList':False,'charts':True,'chartPointerAndTouch':True,'uncaughtErrors':errors}
     (OUT/'browser-result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
