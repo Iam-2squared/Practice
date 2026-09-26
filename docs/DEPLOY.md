@@ -9,6 +9,6 @@ Existing production users must retain their APP_SECRET, account ID, username and
 5. Check config version 0.5.0, provider multi, storage supabase, both five-period chart lists and the 5-tab UI. Config success alone is not a provider, chart or trade test.
 6. Test a separate temporary account: Crypto/FX chart periods, pointer/touch inspection, FX reference date, crypto timestamp, buy/sell/relogin/deletion. Never use another user's password or trade an existing user's wallet.
 
-`MARKET_PROVIDER` and `YAHOO_DATA_USE_APPROVED` are unused in 0.4. Old immutable deployments are not updated retroactively. Protect/remove obsolete deployment URLs separately when restricting access.
+`MARKET_PROVIDER` and `YAHOO_DATA_USE_APPROVED` are unused in 0.5. Old immutable deployments are not updated retroactively. Protect/remove obsolete deployment URLs separately when restricting access.
 
 Do not execute an older destructive migration draft. `db/migrate_crypto_fx_only.sql` is intentionally non-executable guidance.
