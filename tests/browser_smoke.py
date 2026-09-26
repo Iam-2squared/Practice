@@ -55,14 +55,18 @@ with sync_playwright() as p:
         }''')
         page.add_script_tag(content=(ROOT/'public/app.js').read_text(),type='module')
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
-    assert page.locator('nav button').count()==3
+    assert page.locator('nav button').count()==4
     page.screenshot(path=str(OUT/'welcome-mobile.png'))
     page.get_by_role('button',name='練習をはじめる',exact=True).click()
     password='BrowserTest_Only_'+str(uuid.uuid4())
+    page.locator('[name=username]').fill('browser_'+uuid.uuid4().hex[:8])
     page.locator('#password').fill(password)
     page.locator('[name=confirmation]').fill(password)
     page.locator('[name=saved]').check()
     page.get_by_role('button',name='10万円で練習をはじめる').click()
+    page.wait_for_timeout(500)
+    if page.locator('#dialog').is_visible():
+        raise AssertionError('registration dialog remained open: '+page.locator('#form-error').inner_text())
     expect(page.locator('#dialog')).not_to_be_visible()
     expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
     if DIRECT_HTTP:

@@ -7,7 +7,7 @@ const tone = n => n < 0 ? 'negative' : 'positive';
 const stamp = t => t ? new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(t) : '架空の固定価格';
 const paths = {arrow:'M5 12h14m-5-5 5 5-5 5',back:'m15 6-6 6 6 6',chevron:'m9 5 7 7-7 7',close:'m6 6 12 12M6 18 18 6',refresh:'M20 7v5h-5M4 17v-5h5M6.5 6a7 7 0 0 1 11.7 1.5L20 12M4 12l1.8 4.5A7 7 0 0 0 17.5 18',search:'M16 16l5 5',wallet:'M4 7h16v14H4zM4 7V3h13v4M15 12h5v5h-5z',user:'M7 21v-3a5 5 0 0 1 10 0v3M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',shield:'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6',chart:'M4 4v16h17M8 16v-5M13 16V7M18 16v-8',check:'m5 12 4 4L20 5',history:'M5 3h14v18H5zM8 8h8M8 12h8M8 16h5',key:'M14 8a5 5 0 1 0-4 5L21 2M17 6l3 3'};
 const icon = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name === 'search' ? '<circle cx="10.5" cy="10.5" r="6.5"/>' : ''}<path d="${paths[name] || paths.chart}"/></svg>`;
-const state = { tab:'assets', account:null, portfolio:null, config:null, search:[], history:[], offset:0, hasMore:false, filter:'all', stock:null, side:'buy', pending:null, busy:false, query:'', request:0 };
+const state = { tab:'assets', account:null, portfolio:null, config:null, search:[], history:[], ranking:[], offset:0, hasMore:false, filter:'all', stock:null, side:'buy', pending:null, busy:false, query:'', request:0 };
 let toastTimer;
 function toast(text) { $('#toast').textContent=text; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4200); }
 async function api(action, body, params = {}) {
@@ -47,7 +47,7 @@ function pendingHtml() { return state.pending ? '<div class="pending" role="aler
 function render() {
  environment();
  document.querySelectorAll('[data-tab]').forEach(button=>{ if(button.dataset.tab===state.tab) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
- if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else renderHistory();
+ if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else if(state.tab==='ranking') renderRanking(); else renderHistory();
 }
 function renderAssets() {
  const a=state.account; const p=state.portfolio; const s=a?.state; const total=a?(p?.totalMinor??null):10_000_000;
@@ -83,10 +83,19 @@ async function searchStocks(query) {
  try { const result=await api('search',undefined,{q:query}); if(id!==searchVersion)return; state.search=result.items; if(state.tab==='trade'&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
  catch(error){if(id===searchVersion&&$('#search-results'))$('#search-results').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
 }
+function renderRanking() {
+ $('#main').innerHTML=`<div class='section-head'><div><p class='eyebrow'>TOTAL ASSET RANKING</p><h1>総資産ランキング</h1></div><button class='icon-button' data-action='refresh' aria-label='ランキングを更新'>${icon('refresh')}</button></div>
+ ${!state.account?empty('ログインするとランキングを見られます','ユーザーネームと総資産だけを表示します。','login','ログイン','chart'):state.ranking.length?`<div class='card leaderboard'>${state.ranking.map(x=>`<div class='rank-row ${x.me?'me':''}'><span class='rank-number'>${x.rank??'—'}</span><span class='rank-name'>${esc(x.username)}${x.me?'<small>あなた</small>':''}</span><span class='rank-total'>${yen(x.totalMinor,0)}</span></div>`).join('')}</div>`:'<div class="card empty"><h3>ランキングを読み込んでいます</h3><p>総資産を現在の参考価格で評価します。</p></div>'}
+ <p class='fineprint'>総資産＝現金＋保有株の現在の参考評価額。株価を取得できない口座は順位を表示しません。</p>`;
+}
+async function leaderboard() {
+ if(!state.account){state.ranking=[];return;}
+ const result=await api('leaderboard');state.ranking=result.items;if(state.tab==='ranking')render();
+}
 function renderHistory() {
  const rows=state.history.filter(t=>state.filter==='all'||t.side===state.filter);
  $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">YOUR ACTIVITY</p><h1>取引の記録</h1></div><button class="icon-button" data-action="refresh" aria-label="履歴を更新">${icon('refresh')}</button></div>
- <button class="account-entry" data-action="account">${icon('user')}<span><strong>アカウント</strong><small>${state.account?`口座 ${esc(state.account.id.slice(0,8))} · パスワードでログイン`:'新しい口座を作る / ログイン'}</small></span>${icon('chevron','chevron')}</button>
+ <button class="account-entry" data-action="account">${icon('user')}<span><strong>${state.account?esc(state.account.username):'アカウント'}</strong><small>${state.account?'ユーザーネーム編集・ログアウト':'新しい口座を作る / ログイン'}</small></span>${icon('chevron','chevron')}</button>
  ${pendingHtml()}<div class="row-head"><h2>売買履歴</h2><span class="count">${state.history.length}件を表示</span></div><div class="filter" aria-label="履歴の絞り込み">${[['all','すべて'],['buy','購入'],['sell','売却']].map(([key,label])=>`<button data-filter="${key}" class="${state.filter===key?'active':''}" aria-pressed="${state.filter===key}">${label}</button>`).join('')}</div>
  ${rows.length?`<div class="card">${rows.map(t=>`<article class="history-row"><div class="history-top"><div class="history-main"><span class="side-pill ${t.side==='sell'?'sell':''}">${t.side==='buy'?'購入':'売却'}</span><strong>${esc(t.name)}</strong></div><span class="history-money">${yen(t.totalMinor,2)}</span></div><div class="history-bottom"><span>${t.quantity.toLocaleString()}株 × ${yen(t.priceMinor,2)}</span><time>${stamp(t.executedAt)}</time></div>${t.side==='sell'?`<div class="history-bottom"><span>確定損益</span><span class="${tone(t.realizedMinor)}">${signed(t.realizedMinor)}</span></div>`:''}<div class="history-bottom"><span>${t.source==='demo'?'DEMO・架空価格':`Yahoo参考価格 ${stamp(t.quoteAt)}`}</span><span>${esc(t.symbol)}</span></div></article>`).join('')}</div>`:empty('まだ取引の記録はありません','売買すると、銘柄・株数・価格がここに記録されます。',null,null,'history')}
  ${state.hasMore?'<button class="secondary full block-gap" data-action="more-history">次の50件を表示</button>':''}<p class="fineprint">時刻は日本時間（JST）。表示中の履歴が対象の絞り込みです。初期入金10万円は売買履歴に含みません。</p>`;
@@ -102,7 +111,7 @@ async function history(more=false) {
 }
 async function changeTab(tab) {
  state.tab=tab;render();
- try {if(tab==='assets')await refreshPortfolio();if(tab==='trade')await searchStocks(state.query);if(tab==='history')await history();}catch(error){toast(error.message);}
+ try {if(tab==='assets')await refreshPortfolio();if(tab==='trade')await searchStocks(state.query);if(tab==='ranking')await leaderboard();if(tab==='history')await history();}catch(error){toast(error.message);}
 }
 function auth(mode='register') {
  const registering=mode==='register';
@@ -110,7 +119,7 @@ function auth(mode='register') {
  showDialog(`${dialogHead(registering?'練習用の口座を作る':'おかえりなさい')}<p class="subtext">メールアドレス不要。パスワードだけで入れます。</p>
  ${originNotice()}${!state.config?.accountsAvailable?'<div class="notice error">口座保存の接続準備中です。管理者の設定後に利用できます。</div>':''}
  ${registering&&['permission-required','invalid-provider'].includes(state.config?.marketStatus)?'<div class="notice error">実株価の配信設定・利用許諾が未確認のため、新しい口座の作成は停止中です。既存のデモ口座にはログインできます。</div>':''}
- <form id="auth-form" data-mode="${mode}"><label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
+ <form id="auth-form" data-mode="${mode}">${registering?'<label class="field"><span>ユーザーネーム</span><input name="username" type="text" autocomplete="nickname" minlength="2" maxlength="20" required placeholder="2〜20文字"></label>':''}<label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
  <div class="password-actions">${registering?'<button type="button" data-action="generate">安全なパスワードを自動生成</button>':'<span></span>'}<button type="button" data-action="show-password">表示する</button></div>
  ${registering?'<label class="field"><span>もう一度入力</span><input name="confirmation" type="password" autocomplete="new-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" name="saved" required><span>パスワードを保存しました。忘れた場合は復旧できず、知っている人はこの口座に入れることを理解しました。</span></label>':''}
  <div id="form-error" role="alert"></div><button class="primary full" type="submit" ${blocked?'disabled':''}>${registering?'10万円で練習をはじめる':'ログイン'}</button></form>
@@ -119,7 +128,7 @@ function auth(mode='register') {
 }
 function accountDialog() {
  if(!state.account)return auth('login'); const a=state.account;
- showDialog(`${dialogHead('アカウント')}<span class="pill">${currentProvider()==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
+ showDialog(`${dialogHead('アカウント')}<span class="pill">${currentProvider()==='demo'?'デモ練習口座':'日本株 練習口座'}</span><form id="username-form" class="username-form"><label class="field"><span>ユーザーネーム</span><input name="username" type="text" minlength="2" maxlength="20" required value="${esc(a.username)}"></label><div id="username-error" role="alert"></div><button class="primary full" type="submit">ユーザーネームを保存</button></form><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
 }
 function deleteAccountDialog() {
  if(state.pending){toast('未確認の注文結果を確認してから削除してください。');return;}
@@ -179,11 +188,17 @@ async function submitAuth(form) {
  if(form.dataset.mode==='register'&&password!==data.get('confirmation')){$('#form-error').innerHTML='<div class="notice error">パスワードが一致しません。</div>';return;}
  state.busy=true;form.querySelector('[type=submit]').disabled=true;$('#form-error').textContent='';
  try {
-  const result=await api(form.dataset.mode,{password});state.account=result.account;loadPending();state.busy=false;
+  const username=form.dataset.mode==='register'?String(data.get('username')||''):undefined;
+  const result=await api(form.dataset.mode,form.dataset.mode==='register'?{password,username}:{password});state.account=result.account;loadPending();state.busy=false;
   form.reset();closeDialog();render();await refreshPortfolio();toast('練習用の口座にログインしました。');
  } catch(error) {state.busy=false;if($('#form-error')){$('#form-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;form.querySelector('[type=submit]').disabled=false;}else toast(error.message);}
 }
-document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
+async function submitUsername(form){
+ if(state.busy)return;state.busy=true;const button=form.querySelector('[type=submit]');button.disabled=true;$('#username-error').textContent='';
+ try{const result=await api('username',{username:String(new FormData(form).get('username')||'')});state.account=result.account;state.busy=false;closeDialog();render();toast('ユーザーネームを変更しました。');}
+ catch(error){state.busy=false;button.disabled=false;$('#username-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
+}
+document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='username-form'){event.preventDefault();submitUsername(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
 document.addEventListener('input',event=>{if(event.target.id==='quantity')updateEstimate();if(event.target.id==='search'){state.query=event.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchStocks(state.query),300);}});
 document.addEventListener('click',async event=>{
  const b=event.target.closest('button');if(!b||b.disabled||state.busy)return;
@@ -201,10 +216,10 @@ document.addEventListener('click',async event=>{
   case 'account':accountDialog();break;
   case 'delete-account':deleteAccountDialog();break;
   case 'to-trade':if(state.account)changeTab('trade');else auth('register');break;
-  case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
+  case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else if(state.tab==='ranking')await leaderboard();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
   case 'generate':{const bytes=crypto.getRandomValues(new Uint8Array(32));const password=btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');$('#password').value=password;$('#password').type='text';$('[name=confirmation]').value=password;toast('表示されたパスワードを安全な場所に保存してください。');break;}
   case 'show-password':$('#password').type=$('#password').type==='password'?'text':'password';b.textContent=$('#password').type==='password'?'表示する':'隠す';break;
-  case 'logout':await api('logout',{});state.account=null;state.portfolio=null;state.pending=null;state.history=[];state.search=[];state.request++;closeDialog();render();toast('ログアウトしました。');break;
+  case 'logout':await api('logout',{});state.account=null;state.portfolio=null;state.pending=null;state.history=[];state.ranking=[];state.search=[];state.request++;closeDialog();render();toast('ログアウトしました。');break;
   case 'refresh-quote':openStock(state.stock.quote.symbol,state.side);break;
   case 'back-order':renderStock();break;
   case 'retry-order':await submitOrder();break;
