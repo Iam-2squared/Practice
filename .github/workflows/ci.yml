@@ -43,3 +43,30 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f db/bootstrap.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/verify.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/smoke.sql
+
+  mobile-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install playwright==1.57.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Start isolated local server
+        run: |
+          node scripts/dev.mjs > /tmp/practice-dev.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS 'http://localhost:3000/api/index?action=config' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: python tests/browser_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-ui-evidence
+          path: test-results/
+          retention-days: 7

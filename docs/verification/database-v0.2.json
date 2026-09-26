@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-26 14:35:08 JST",
+  "project_id": "mitowlxrsrhbtmehiyvh",
+  "migration": "practice_v02_cash_lots",
+  "sql_service_role_smoke": "PASS",
+  "fixture_rows_after_rollback": {
+    "accounts": 0,
+    "sessions": 0,
+    "trades": 0,
+    "rate_buckets": 0
+  },
+  "tables": {
+    "count": 4,
+    "rls": true,
+    "anon_select": false,
+    "authenticated_update": false,
+    "server_select": true
+  },
+  "functions": {
+    "count": 3,
+    "security_definer": false,
+    "anon_execute": false,
+    "server_execute": true
+  },
+  "security_advisor": {
+    "errors": 0,
+    "warnings": 0,
+    "info": 4,
+    "info_name": "rls_enabled_no_policy",
+    "disposition": "intentional server-only tables"
+  },
+  "production_rest_and_cookie_e2e": "NOT_RUN"
+}

@@ -10,4 +10,4 @@ select p.proname,p.prosecdef as security_definer,
  has_function_privilege('anon',p.oid,'execute') as anon_execute,
  has_function_privilege('service_role',p.oid,'execute') as server_execute
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-where n.nspname='public' and p.proname in ('practice_commit_trade','practice_rate_limit');
+where n.nspname='public' and p.proname in ('practice_commit_trade','practice_rate_limit','practice_valid_state');
