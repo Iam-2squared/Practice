@@ -45,6 +45,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;'
       - run: psql -v ON_ERROR_STOP=1 -f db/bootstrap.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/crypto_fx.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/price_charts.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/verify.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/smoke.sql
 

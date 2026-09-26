@@ -2,7 +2,7 @@
 begin;
 set local role service_role;
 do $$
-declare aid uuid; s jsonb; t jsonb; r jsonb; denied boolean; token uuid;
+declare aid uuid; s jsonb; t jsonb; r jsonb; denied boolean; token uuid; chart_token uuid;
  stamp bigint:=floor(extract(epoch from statement_timestamp())*1000); tag text:=replace(gen_random_uuid()::text,'-','');
 begin
  if has_table_privilege('anon','public.practice_wallets','select') or has_table_privilege('authenticated','public.practice_asset_trades','select') or has_function_privilege('anon','public.practice_commit_asset_trade(uuid,bigint,jsonb,jsonb,text)','execute') then raise exception 'Public access';end if;
@@ -41,6 +41,18 @@ begin
   if public.practice_save_quotes('crypto',gen_random_uuid(),'[1,2,3,4]',stamp) then raise exception 'Wrong lease accepted';end if;
   perform public.practice_fail_quotes('crypto',token,'MARKET_RATE_LIMIT',600000);
  end if;
+ r:=public.practice_claim_chart('chart:BTC:24H',300000);
+ if r->>'claimed'='true' then
+  chart_token:=(r->>'token')::uuid;
+  r:=public.practice_claim_chart('chart:BTC:24H',300000);if r->>'claimed'<>'false' then raise exception 'Double chart cache claim';end if;
+  if public.practice_save_chart('chart:BTC:24H',gen_random_uuid(),'{}',stamp,stamp+300000) then raise exception 'Wrong chart lease accepted';end if;
+  if not public.practice_save_chart('chart:BTC:24H',chart_token,'{"symbol":"BTC"}',stamp,stamp+300000) then raise exception 'Chart save failed';end if;
+ end if;
+ denied:=false;begin perform public.practice_claim_chart('chart:BTC:5Y',300000);exception when others then denied:=true;end;if not denied then raise exception 'Invalid chart key accepted';end if;
+ insert into public.practice_provider_budgets(key,call_count) values('coingecko-chart:'||to_char(statement_timestamp() at time zone 'UTC','YYYY-MM'),500)
+ on conflict(key) do update set call_count=500;
+ r:=public.practice_claim_chart('chart:ETH:24H',3600000);
+ if r->'cached'->>'error'<>'CHART_BUDGET' then raise exception 'Chart monthly budget not enforced';end if;
 end $$;
 rollback;
-select 'PASS: wallet trigger, BTC/FX round trips, CAS, idempotency, invalid quotes, legacy history, pagination, deletion cascade and cache lease' as result;
+select 'PASS: wallet trigger, BTC/FX round trips, CAS, idempotency, invalid quotes, legacy history, pagination, deletion cascade and quote/chart cache leases' as result;
