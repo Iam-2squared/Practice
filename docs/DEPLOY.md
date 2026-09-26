@@ -1,21 +1,28 @@
 # Vercel + Supabase 接続
 
-## 1. 専用DB
+## 1. 専用DB — 構築・SQL検証済み
 
-作成先のSupabase組織をユーザーが指定し、費用を確認してから `Practice` 専用プロジェクトを作成します。既存の別アプリのDBは使いません。推奨リージョンは東京（ap-northeast-1）。作成済みとは扱わないでください。
+- Project: **Practice** / `mitowlxrsrhbtmehiyvh`
+- Region: **ap-northeast-1（東京）**
+- 作成時に接続ツールが提示した費用: **月額0**（将来の利用上限・追加機能の料金保証ではありません）
+- Migration: `practice_v02_cash_lots`
+- 4テーブルのRLSと非公開権限、3つのSECURITY INVOKER関数を確認済み。
+- service_roleで100株制限、買い／一部売却／全売却、二重注文、改ざん拒否、口座削除連鎖を検証。検証レコードはROLLBACKして0件。
 
-`db/bootstrap.sql` を専用プロジェクトで実行します。`db/verify.sql` の全行で、RLS=true、anon/authenticated権限=false、server権限=trueを確認します。Security Advisorも実行してください。新規DB用のブートストラップであり、既存の本番スキーマへの差分マイグレーションではありません。
+**同じプロジェクトを再作成する必要はありません。** 既存の別プロジェクトには変更していません。`db/bootstrap.sql` は新規環境用で、旧バージョンの実データ入りDBの移行スクリプトではありません。
 
-## 2. Vercel
+## 2. Vercel — 現在ここが接続待ち
 
-GitHub `Iam-2squared/Practice` をインポートし、Frameworkを **Other** にします。`vercel.json` がビルドと `dist/` を指定します。APIは `api/index.js`、Node.js 22、東京リージョンです。
+接続ツールは `list_teams` が0件、`deploy_to_vercel` が `-32602 Tool deploy_to_vercel not found` でした。CLIの認証情報もこの作業環境にはありません。公開済みURLはありません。
+
+Vercelの「Add New → Project」でGitHub `Iam-2squared/Practice` をインポートし、Frameworkを **Other** にします。`vercel.json` がビルドと `dist/` を指定します。APIは `api/index.js`、Node.js 22、東京リージョンです。
 
 秘密値はVercelのEnvironment Variablesに直接設定し、チャットやGitHubには貼り付けないでください。
 
 | 環境変数 | 設定 |
 |---|---|
 | `PRACTICE_STORE` | `supabase` |
-| `SUPABASE_URL` | 専用プロジェクトのHTTPS URL |
+| `SUPABASE_URL` | `https://mitowlxrsrhbtmehiyvh.supabase.co` |
 | `SUPABASE_SECRET_KEY` | サーバー専用の `sb_secret_...`（推奨）またはservice-role JWT |
 | `APP_SECRET` | 独立した64文字以上の秘密鍵 |
 | `APP_ORIGIN` | 実際の公開HTTPS origin。末尾 `/` なし |
@@ -44,6 +51,15 @@ PreviewとProductionで別DB・別秘密値を使うか、Previewでは口座を
 
 Yahoo取得が失敗すると注文は停止し、デモ価格で補完しません。価格時刻・取得時刻を区別して記録します。営業中と判断できるデータは30分、営業時間外の参照価格は5日を取得時点の上限とし、注文トークンの期限は60秒です。
 
-## v0.1で未完了の運用項目
+## 残る公開運用の確認
 
-公衆向けアクセス数・濫用制御、バックアップと保持期間、削除受付方法、運営者連絡先、プライバシー説明の運用実態との一致を公開前に決定してください。株式分割などコーポレートアクションは未対応なので、長期保有の正確な損益再現には使用しないでください。
+公衆向けアクセス数・濫用制御、バックアップと保持期間、削除済み口座のバックアップ保持、運営者連絡先、プライバシー説明の運用実態との一致を公開前に決定してください。株式分割などコーポレートアクションは未対応なので、長期保有の正確な損益再現には使用しないでください。
+
+## 公開時の必須チェック
+
+1. Productionの環境変数だけを設定し、未設定のPreviewは口座を無効なままにする。
+2. `/api/index?action=config` の `accountsAvailable=true`、`lotSize=100`、`version=0.2.0` を確認する。
+3. 新規口座で100株購入・100株売却・再ログイン・別端末ログインを確認。1株／99株／101株の改変リクエストは拒否されること。
+4. ローカルの表示テストは公開URLのCookie、CSP、ルーティング、Supabase REST接続を代替しない。これらが通るまでは公開完了としない。
+
+Yahooの権利確認はこのアプリの設定フラグだけで成立しません。本番で勝手に承認済み扱いにしないでください。

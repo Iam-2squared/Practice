@@ -1,0 +1,85 @@
+{
+  "result": "PASS",
+  "transport": "isolated renderer + local HTTP API bridge",
+  "checks": [
+    "3-tab layout",
+    "password-only registration",
+    "search",
+    "insufficient balance",
+    "100-share increments and presets",
+    "non-lot inputs rejected",
+    "buyable lots floored to 100",
+    "buy confirmation",
+    "holding-to-sell",
+    "oversell rejected",
+    "history",
+    "history filter",
+    "logout",
+    "relogin persistence",
+    "360px no overflow",
+    "1280px desktop",
+    "account deletion with reauthentication",
+    "minimum 44px nav targets",
+    "no uncaught JS errors"
+  ],
+  "responsive": [
+    {
+      "width": 320,
+      "height": 740,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 360,
+      "height": 800,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "tabs": 3,
+      "dialog": "PASS",
+      "horizontal_overflow": false
+    }
+  ],
+  "lot_size": 100,
+  "uncaught_js_errors": []
+}

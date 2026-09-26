@@ -1,3 +1,4 @@
+const LOT_SIZE = 100;
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const yen = (minor, decimals = 0) => minor == null ? '—' : new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',minimumFractionDigits:decimals,maximumFractionDigits:decimals}).format(minor/100);
@@ -51,9 +52,9 @@ function renderAssets() {
  <dl class="small-grid"><div class="stat"><dt>評価損益</dt><dd class="${tone(unrealized)}">${signed(unrealized)}</dd></div><div class="stat"><dt>確定損益</dt><dd class="${tone(s?.realizedMinor||0)}">${signed(s?.realizedMinor||0)}</dd></div></dl>
  ${p&&!p.valuationComplete?'<div class="notice error">一部の株価を取得できません。資産合計は未算出です。保有数・現金は保存されています。</div>':''}
  <div class="row-head"><h2>持ち株<span class="count">${s?.positions.length||0}銘柄</span></h2><button class="link-button" data-action="to-trade">銘柄を探す ↗</button></div>
- ${s?.positions.length?`<div class="card">${s.positions.map(x=>holdingRow(x,p?.quotes[x.symbol])).join('')}</div>`:empty(a?'最初の1株を買ってみよう':'10万円から、気軽にはじめよう。',a?'気になる銘柄を探して、1株から仮想売買。<br>持ち株はここに表示されます。':'メール登録も、入金も不要。<br>パスワードをひとつ作って、株の練習をはじめよう。',a?'to-trade':'register',a?'銘柄を探す':'練習をはじめる')}
+ ${s?.positions.length?`<div class="card">${s.positions.map(x=>holdingRow(x,p?.quotes[x.symbol])).join('')}</div>`:empty(a?'最初の100株から、はじめよう。':'10万円から、気軽にはじめよう。',a?'100株単位で、現物取引を練習。<br>持ち株はここに表示されます。':'メール登録も、入金も不要。<br>パスワードをひとつ作って、株の練習をはじめよう。',a?'to-trade':'register',a?'銘柄を探す':'練習をはじめる')}
  ${!a?'<p class="zero-note">すでに口座がある方は <button class="link-button" data-action="login">ログイン</button></p>':''}
- <div class="tip"><strong>小さく買って、少しずつ学ぶ。</strong><br>1株単位のシンプルな練習モード。信用取引・空売りはありません。</div>`;
+ <div class="tip"><strong>まずは一単元。自分のペースで。</strong><br>100株単位のシンプルな練習モード。信用取引・空売りはありません。</div>`;
 }
 function holdingRow(p,q) {
  const value=q?q.priceMinor*p.shares:null; const gain=value==null?null:value-p.costMinor;
@@ -62,8 +63,8 @@ function holdingRow(p,q) {
 function renderSearch() {
  $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>銘柄を探す</h1></div><span class="pill">日本株・現物</span></div>
  ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="銘柄名・コードで検索" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div><p class="search-hint">例：トヨタ / 7203 / NTT</p>
- ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、1株から仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${state.config.provider==='demo'?'デモ用20銘柄':'Yahoo検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
- <div class="intro">${icon('shield')}<div><strong>買えるのは、いま持っている資金の範囲だけ。</strong><small>手数料・税金を除く、シンプルな現物取引の練習です。</small></div></div>`;
+ ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、100株単位の仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${state.config.provider==='demo'?'デモ用20銘柄':'Yahoo検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
+ <div class="intro">${icon('shield')}<div><strong>買えるのは、いま持っている資金の範囲だけ。</strong><small>100株単位。初期10万円では、1株1,000円以下の銘柄を購入できます。</small></div></div>`;
 }
 function searchRows() {
  return state.search.length?`<div class="card">${state.search.map(x=>`<button class="stock-row" data-symbol="${esc(x.symbol)}"><span class="stock-avatar">${esc(x.symbol.slice(0,4))}</span><span class="stock-info"><span class="stock-name">${esc(x.name)}</span><span class="stock-meta">${esc(x.symbol)} · ${esc(x.sector||'日本株')}</span></span>${icon('chevron','chevron')}</button>`).join('')}</div>`:'<div class="card empty"><h3>銘柄が見つかりませんでした</h3><p>別の銘柄名やコードで検索してください。</p></div>';
@@ -108,7 +109,18 @@ function auth(mode='register') {
 }
 function accountDialog() {
  if(!state.account)return auth('login'); const a=state.account;
- showDialog(`${dialogHead('アカウント')}<span class="pill">${state.config.provider==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
+ showDialog(`${dialogHead('アカウント')}<span class="pill">${state.config.provider==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
+}
+function deleteAccountDialog() {
+ if(state.pending){toast('未確認の注文結果を確認してから削除してください。');return;}
+ showDialog(`${dialogHead('口座を削除')}<div class="notice error">資産・持ち株・売買履歴を削除し、すべての端末をログアウトします。取り消しはできません。</div><form id="delete-form"><label class="field"><span>本人確認のパスワード</span><input name="password" type="password" autocomplete="current-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" required><span>口座と履歴を削除し、元に戻せないことを確認しました。</span></label><div id="delete-error" role="alert"></div><button class="danger-button full" type="submit">口座を完全に削除する</button></form>`);
+}
+async function deleteAccount(form) {
+ if(state.busy)return;state.busy=true;const button=form.querySelector('[type=submit]');button.disabled=true;
+ try {
+  await api('delete-account',{password:String(new FormData(form).get('password')||''),confirm:'DELETE'});
+  savePending(null);form.reset();state.account=null;state.portfolio=null;state.history=[];state.search=[];state.query='';state.tab='assets';state.busy=false;closeDialog();render();toast('口座と履歴を削除しました。');
+ } catch(error){state.busy=false;$('#delete-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;button.disabled=false;}
 }
 async function openStock(symbol,side='buy') {
  if(!state.account)return auth('login'); const id=++state.request;state.side=side;state.stock=null;
@@ -116,19 +128,19 @@ async function openStock(symbol,side='buy') {
  try { const result=await api('quote',undefined,{symbol});if(id!==state.request)return;state.stock=result;renderStock(); }
  catch(error){if(id===state.request)showDialog(`${dialogHead('株価を取得できません')}<div class="notice error">${esc(error.message)}</div><p class="fineprint">価格が確認できるまで注文はできません。</p>`);}
 }
-function renderStock(quantity=1) {
+function renderStock(quantity=LOT_SIZE) {
  const {quote:q}=state.stock;const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0;
- showDialog(`${dialogHead(esc(q.name))}<span class="muted"><small>${esc(q.symbol)} · 現物 / 1株単位</small></span><div class="quote-price">${yen(q.priceMinor,2)}</div><p class="quote-meta">${q.source==='demo'?'DEMO · 実際の株価ではない架空の固定価格':`Yahoo参考価格 · ${stamp(q.quoteAt)} JST · ${q.delayMinutes==null?'遅延時間不明':`${q.delayMinutes}分遅延`}`}</p>
+ showDialog(`${dialogHead(esc(q.name))}<span class="muted"><small>${esc(q.symbol)} · 現物 / 100株単位</small></span><div class="quote-price">${yen(q.priceMinor,2)}</div><p class="quote-meta">${q.source==='demo'?'DEMO · 実際の株価ではない架空の固定価格':`Yahoo参考価格 · ${stamp(q.quoteAt)} JST · ${q.delayMinutes==null?'遅延時間不明':`${q.delayMinutes}分遅延`}`}</p>
  <div class="trade-tabs" aria-label="売買区分"><button data-side-toggle="buy" class="${state.side==='buy'?'active':''}" aria-pressed="${state.side==='buy'}">買う</button><button data-side-toggle="sell" class="sell ${state.side==='sell'?'active':''}" aria-pressed="${state.side==='sell'}">売る</button></div>
- <form id="trade-form"><label class="field"><span>株数</span><div class="quantity-input"><button type="button" data-step="-1" aria-label="1株減らす">−</button><input name="quantity" id="quantity" type="number" inputmode="numeric" min="1" max="1000000" step="1" value="${quantity}" required aria-label="注文株数"><button type="button" data-step="1" aria-label="1株増やす">+</button><span>株</span></div></label><div class="quantity-presets"><button type="button" data-quantity="1">1株</button><button type="button" data-quantity="10">10株</button><button type="button" data-quantity="100">100株</button><button type="button" data-quantity="max">${state.side==='buy'?'買付可能数':'全株'}</button></div>
- <dl class="details"><div><dt>買付余力</dt><dd>${yen(state.account.state.cashMinor,2)}</dd></div><div><dt>保有数</dt><dd>${held.toLocaleString()}株</dd></div><div><dt>概算${state.side==='buy'?'購入':'売却'}金額</dt><dd id="estimate" class="trade-estimate"></dd></div></dl><div id="trade-error" role="alert"></div><button class="${state.side==='buy'?'primary':'danger-button'} full" id="order-next" type="submit">${state.side==='buy'?'購入':'売却'}内容を確認</button></form>
+ <form id="trade-form"><label class="field"><span>株数 <small class="muted">100株 = 1単元</small></span><div class="quantity-input"><button type="button" data-step="-100" aria-label="100株減らす">−</button><input name="quantity" id="quantity" type="number" inputmode="numeric" min="100" max="1000000" step="100" value="${quantity}" required aria-label="注文株数"><button type="button" data-step="100" aria-label="100株増やす">+</button><span>株</span></div></label><div class="quantity-presets"><button type="button" data-quantity="100">100株</button><button type="button" data-quantity="200">200株</button><button type="button" data-quantity="500">500株</button><button type="button" data-quantity="max">${state.side==='buy'?'買付可能数':'売却可能数'}</button></div>
+ <dl class="details"><div><dt>1単元（100株）の金額</dt><dd>${yen(q.priceMinor*LOT_SIZE,2)}</dd></div><div><dt>買付余力</dt><dd>${yen(state.account.state.cashMinor,2)}</dd></div><div><dt>保有数</dt><dd>${held.toLocaleString()}株</dd></div><div><dt>概算${state.side==='buy'?'購入':'売却'}金額</dt><dd id="estimate" class="trade-estimate"></dd></div></dl><div id="trade-error" role="alert"></div><button class="${state.side==='buy'?'primary':'danger-button'} full" id="order-next" type="submit">${state.side==='buy'?'購入':'売却'}内容を確認</button></form>
  <button class="link-button" data-action="refresh-quote">株価を更新</button><p class="fineprint">参考価格で即時に仮想成立します。営業日・営業時間の判定による注文制限はありません。手数料・税金・板・株式分割・配当は再現しません。</p>`);updateEstimate();
 }
 function updateEstimate() {
  if(!$('#quantity')||!state.stock)return;const n=Number($('#quantity').value);const q=state.stock.quote;
- const valid=Number.isSafeInteger(n)&&n>=1&&n<=1_000_000;const cost=valid?q.priceMinor*n:null;
+ const valid=Number.isSafeInteger(n)&&n>=LOT_SIZE&&n<=1_000_000&&n%LOT_SIZE===0;const cost=valid?q.priceMinor*n:null;
  $('#estimate').textContent=yen(cost,2);const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0;
- const error=state.pending?'前の注文の結果を確認してから、新しい注文を行ってください。':!valid?'1以上の整数を入力してください。':state.side==='buy'&&cost>state.account.state.cashMinor?'買付余力が不足しています。':state.side==='sell'&&n>held?'保有株数を超えて売ることはできません。':'';
+ const error=state.pending?'前の注文の結果を確認してから、新しい注文を行ってください。':!valid?'100〜1,000,000株の範囲で、100株単位で入力してください。':state.side==='buy'&&cost>state.account.state.cashMinor?`買付余力が不足しています。1単元（100株）には${yen(q.priceMinor*LOT_SIZE,2)}が必要です。`:state.side==='sell'&&n>held?'保有株数を超えて売ることはできません。':'';
  $('#trade-error').innerHTML=error?`<div class="notice error">${error}</div>`:'';$('#order-next').disabled=!!error;
 }
 function confirmOrder(quantity) {
@@ -158,7 +170,7 @@ async function submitAuth(form) {
   form.reset();closeDialog();render();await refreshPortfolio();toast('練習用の口座にログインしました。');
  } catch(error) {state.busy=false;if($('#form-error')){$('#form-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;form.querySelector('[type=submit]').disabled=false;}else toast(error.message);}
 }
-document.addEventListener('submit',event=>{if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
+document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
 document.addEventListener('input',event=>{if(event.target.id==='quantity')updateEstimate();if(event.target.id==='search'){state.query=event.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchStocks(state.query),300);}});
 document.addEventListener('click',async event=>{
  const b=event.target.closest('button');if(!b||b.disabled||state.busy)return;
@@ -166,14 +178,15 @@ document.addEventListener('click',async event=>{
  if(b.dataset.symbol){openStock(b.dataset.symbol,b.dataset.side||'buy');return;}
  if(b.dataset.filter){state.filter=b.dataset.filter;renderHistory();return;}
  if(b.dataset.sideToggle){state.side=b.dataset.sideToggle;renderStock();return;}
- if(b.dataset.step){$('#quantity').value=String(Math.max(1,Number($('#quantity').value)+Number(b.dataset.step)));updateEstimate();return;}
- if(b.dataset.quantity){const q=state.stock.quote;$('#quantity').value=b.dataset.quantity==='max'?String(state.side==='buy'?Math.floor(state.account.state.cashMinor/q.priceMinor):state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0):b.dataset.quantity;updateEstimate();return;}
+ if(b.dataset.step){$('#quantity').value=String(Math.min(1_000_000,Math.max(LOT_SIZE,(Math.floor(Number($('#quantity').value)/LOT_SIZE)||0)*LOT_SIZE+Number(b.dataset.step))));updateEstimate();return;}
+ if(b.dataset.quantity){const q=state.stock.quote;$('#quantity').value=b.dataset.quantity==='max'?String(Math.min(1_000_000,Math.floor((state.side==='buy'?state.account.state.cashMinor/q.priceMinor:state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0)/LOT_SIZE)*LOT_SIZE)):b.dataset.quantity;updateEstimate();return;}
  try {
  switch(b.dataset.action){
   case 'close':closeDialog();break;
   case 'register':auth('register');break;
   case 'login':auth('login');break;
   case 'account':accountDialog();break;
+  case 'delete-account':deleteAccountDialog();break;
   case 'to-trade':if(state.account)changeTab('trade');else auth('register');break;
   case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
   case 'generate':{const bytes=crypto.getRandomValues(new Uint8Array(32));const password=btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');$('#password').value=password;$('#password').type='text';$('[name=confirmation]').value=password;toast('表示されたパスワードを安全な場所に保存してください。');break;}
