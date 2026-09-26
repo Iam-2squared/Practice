@@ -15,7 +15,7 @@ begin
    or (s->>'version')::numeric <> trunc((s->>'version')::numeric)
    or jsonb_array_length(s->'positions') > 100 then return false; end if;
  for p in select value from jsonb_array_elements(s->'positions') loop
-  if (jsonb_typeof(p)='object' and p ?& array['symbol','name','shares','costMinor']
+  if (jsonb_typeof(p)='object' and p ?& array['symbol','name','quantity','costMinor']
     and jsonb_typeof(p->'symbol')='string' and p->>'symbol' ~ '^[1-9][0-9A-Z]{3}\.T$'
     and jsonb_typeof(p->'name')='string' and length(p->>'name') between 1 and 100
     and jsonb_typeof(p->'shares')='number' and jsonb_typeof(p->'costMinor')='number') is not true then return false; end if;
@@ -36,7 +36,7 @@ create table if not exists public.practice_accounts (
  salt text not null check (salt ~ '^[a-f0-9]{32}$'),
  password_hash text not null check (password_hash ~ '^[a-f0-9]{128}$'),
  username text not null check (char_length(username) between 2 and 20 and username=btrim(username) and username !~ '[[:cntrl:]<>]'),
- market text not null check (market in ('demo','yahoo')),
+ market text not null check (market in ('multi')),
  state jsonb not null check (public.practice_valid_state(state)),
  created_at timestamptz not null default now()
 );
@@ -91,7 +91,7 @@ begin
  if (jsonb_typeof(p_trade)='object' and p_trade ?& array['requestId','symbol','name','side','quantity','priceMinor','totalMinor','cashAfterMinor','realizedMinor','source','executedAt','quoteAt']
    and p_trade->>'requestId' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
    and p_trade->>'side' in ('buy','sell') and p_trade->>'symbol' ~ '^[1-9][0-9A-Z]{3}\.T$'
-   and p_trade->>'source'=a.market and jsonb_typeof(p_trade->'name')='string'
+   and p_trade->>'source' in ('coingecko','frankfurter') and jsonb_typeof(p_trade->'name')='string'
    and length(p_trade->>'name') between 1 and 100
    and jsonb_typeof(p_trade->'quantity')='number' and jsonb_typeof(p_trade->'priceMinor')='number'
    and jsonb_typeof(p_trade->'totalMinor')='number' and jsonb_typeof(p_trade->'cashAfterMinor')='number'
@@ -99,8 +99,8 @@ begin
    and p_fingerprint ~ '^[a-f0-9]{64}$' and public.practice_valid_state(p_state)) is not true then
   raise exception 'Invalid trade contract' using errcode='23514';
  end if;
- qty := (p_trade->>'quantity')::numeric; price := (p_trade->>'priceMinor')::numeric; total := qty*price;
- if qty not between 100 and 1000000 or mod(qty,100)<>0
+ qty := (p_trade->>'quantity')::numeric; price := (p_trade->>'priceMinor')::numeric; total := round(qty*price/1000000);
+ if qty not between 1 and 1000000000000
    or price not between 1 and 1000000000000 or price<>trunc(price)
    or total>1000000000000 or total<>(p_trade->>'totalMinor')::numeric then
   raise exception 'Invalid lot or price' using errcode='23514';
@@ -111,18 +111,18 @@ begin
   if cash<total then raise exception 'Insufficient cash' using errcode='23514'; end if;
   cash := cash-total;
   if idx is null then
-   positions := positions || jsonb_build_array(jsonb_build_object('symbol',p_trade->>'symbol','name',p_trade->>'name','shares',qty,'costMinor',total));
+   positions := positions || jsonb_build_array(jsonb_build_object('symbol',p_trade->>'symbol','name',p_trade->>'name','quantity',qty,'type',p_trade->>'type','unit',p_trade->>'unit','costMinor',total));
   else
-   position := position || jsonb_build_object('shares',(position->>'shares')::numeric+qty,'costMinor',(position->>'costMinor')::numeric+total);
+   position := position || jsonb_build_object('quantity',(position->>'quantity')::numeric+qty,'costMinor',(position->>'costMinor')::numeric+total);
    positions := jsonb_set(positions,array[idx::text],position);
   end if;
  else
-  if idx is null or (position->>'shares')::numeric<qty then raise exception 'Insufficient shares' using errcode='23514'; end if;
-  basis := floor((position->>'costMinor')::numeric*qty/(position->>'shares')::numeric);
+  if idx is null or (position->>'quantity')::numeric<qty then raise exception 'Insufficient shares' using errcode='23514'; end if;
+  basis := floor((position->>'costMinor')::numeric*qty/(position->>'quantity')::numeric);
   realized := total-basis; cash := cash+total;
-  if (position->>'shares')::numeric=qty then positions := positions-idx;
+  if (position->>'quantity')::numeric=qty then positions := positions-idx;
   else
-   position := position || jsonb_build_object('shares',(position->>'shares')::numeric-qty,'costMinor',(position->>'costMinor')::numeric-basis);
+   position := position || jsonb_build_object('quantity',(position->>'quantity')::numeric-qty,'costMinor',(position->>'costMinor')::numeric-basis);
    positions := jsonb_set(positions,array[idx::text],position);
   end if;
  end if;
