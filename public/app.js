@@ -119,9 +119,9 @@ function auth(mode='register') {
  showDialog(`${dialogHead(registering?'練習用の口座を作る':'おかえりなさい')}<p class="subtext">メールアドレス不要。パスワードだけで入れます。</p>
  ${originNotice()}${!state.config?.accountsAvailable?'<div class="notice error">口座保存の接続準備中です。管理者の設定後に利用できます。</div>':''}
  ${registering&&['permission-required','invalid-provider'].includes(state.config?.marketStatus)?'<div class="notice error">実株価の配信設定・利用許諾が未確認のため、新しい口座の作成は停止中です。既存のデモ口座にはログインできます。</div>':''}
- <form id="auth-form" data-mode="${mode}">${registering?'<label class="field"><span>ユーザーネーム</span><input name="username" type="text" autocomplete="nickname" minlength="2" maxlength="20" required placeholder="2〜20文字"></label>':''}<label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
+ <form id="auth-form" data-mode="${mode}">${registering?'<label class="field"><span>ユーザーネーム</span><input name="username" type="text" autocomplete="nickname" minlength="2" maxlength="20" required placeholder="2〜20文字"></label>':''}<label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="6" maxlength="128" required placeholder="6文字以上の、ほかで使っていないもの"></label>
  <div class="password-actions">${registering?'<button type="button" data-action="generate">安全なパスワードを自動生成</button>':'<span></span>'}<button type="button" data-action="show-password">表示する</button></div>
- ${registering?'<label class="field"><span>もう一度入力</span><input name="confirmation" type="password" autocomplete="new-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" name="saved" required><span>パスワードを保存しました。忘れた場合は復旧できず、知っている人はこの口座に入れることを理解しました。</span></label>':''}
+ ${registering?'<label class="field"><span>もう一度入力</span><input name="confirmation" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label><label class="check"><input type="checkbox" name="saved" required><span>パスワードを保存しました。忘れた場合は復旧できず、知っている人はこの口座に入れることを理解しました。</span></label>':''}
  <div id="form-error" role="alert"></div><button class="primary full" type="submit" ${blocked?'disabled':''}>${registering?'10万円で練習をはじめる':'ログイン'}</button></form>
  <p class="fineprint">現実のお金は使いません。他サービスのパスワードは使わないでください。${state.config?.storage==='local'?'現在はこの開発サーバー内だけに保存されます。':''}</p><p class="dialog-foot">${registering?'すでに口座がありますか？':'はじめてですか？'} <button data-action="${registering?'login':'register'}">${registering?'ログイン':'口座を作る'}</button></p>`);
  setTimeout(()=>$('#password')?.focus(),50);
@@ -132,7 +132,7 @@ function accountDialog() {
 }
 function deleteAccountDialog() {
  if(state.pending){toast('未確認の注文結果を確認してから削除してください。');return;}
- showDialog(`${dialogHead('口座を削除')}<div class="notice error">資産・持ち株・売買履歴を削除し、すべての端末をログアウトします。取り消しはできません。</div><form id="delete-form"><label class="field"><span>本人確認のパスワード</span><input name="password" type="password" autocomplete="current-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" required><span>口座と履歴を削除し、元に戻せないことを確認しました。</span></label><div id="delete-error" role="alert"></div><button class="danger-button full" type="submit">口座を完全に削除する</button></form>`);
+ showDialog(`${dialogHead('口座を削除')}<div class="notice error">資産・持ち株・売買履歴を削除し、すべての端末をログアウトします。取り消しはできません。</div><form id="delete-form"><label class="field"><span>本人確認のパスワード</span><input name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" required></label><label class="check"><input type="checkbox" required><span>口座と履歴を削除し、元に戻せないことを確認しました。</span></label><div id="delete-error" role="alert"></div><button class="danger-button full" type="submit">口座を完全に削除する</button></form>`);
 }
 async function deleteAccount(form) {
  if(state.busy)return;state.busy=true;const button=form.querySelector('[type=submit]');button.disabled=true;

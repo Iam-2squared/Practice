@@ -124,7 +124,7 @@ with sync_playwright() as p:
     page.screenshot(path=str(OUT/'history-mobile.png'))
     page.locator('[data-filter=sell]').click()
     expect(page.locator('.history-row')).to_have_count(1)
-    page.get_by_role('button',name='アカウント',exact=False).filter(has=page.locator('strong')).click()
+    page.locator('[data-action=account]').click()
     page.get_by_role('button',name='ログアウト',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
     page.locator('[data-action=account]').click()
