@@ -63,3 +63,14 @@ Yahoo取得が失敗すると注文は停止し、デモ価格で補完しませ
 4. ローカルの表示テストは公開URLのCookie、CSP、ルーティング、Supabase REST接続を代替しない。これらが通るまでは公開完了としない。
 
 Yahooの権利確認はこのアプリの設定フラグだけで成立しません。本番で勝手に承認済み扱いにしないでください。
+
+## v0.2.1 corrective notes
+
+- A `SUPABASE_URL` with a trailing slash or surrounding copy/paste whitespace is now normalized. A non-Supabase host, path, query, credentials, or non-HTTPS URL is still rejected.
+- `APP_ORIGIN` is normalized to an HTTPS origin. Keep using the stable public domain. A deployment-specific URL shows a link to the canonical site rather than allowing cross-origin writes. CSRF protection is unchanged.
+- `/api?action=config` now returns `setupIssues` (only variable names, no values), `publicOrigin`, and `marketStatus`. `accountsAvailable=true` means the server adapter is configured, **not** proof of a successful DB read/write. Verify a logged-in session/trade separately.
+- Secret variables are write-only in the dashboard. A blank edit field does not prove an empty stored value. A Secret can be updated; changing the type is not a repair for a missing/incorrect value.
+- Do not recreate all variables or rotate `APP_SECRET` after every error. It participates in password lookup; changing it without a migration would lock out existing accounts.
+- Quote signatures now use a derived server-only key requiring both `APP_SECRET` and the Supabase server key. No existing credential lookup, account or session is changed. Previously issued uncommitted quote tokens expire at the release; refresh the quote once. Committed orders can still be replayed by their existing idempotency key.
+- GitHub CI on main now performs a read-only public configuration smoke after tests. It does not authenticate, create users, read secret values, or claim to prove live-price access.
+- See `docs/MARKET_DATA.md` before enabling Yahoo. Publication permission and live-host testing remain outstanding; do not mark them complete from environment-variable presence.

@@ -36,3 +36,11 @@ Do not put secrets in issues. Report a suspected vulnerability with a minimal re
 Dedicated project: `mitowlxrsrhbtmehiyvh` (Practice, Tokyo). Migration `practice_v02_cash_lots` was applied and service-role SQL smoke tests passed, with all fixtures rolled back. Advisor results: no ERROR/WARN; four INFO `rls_enabled_no_policy` findings are intentional: direct browser table access is denied, while only the server role can execute the API contracts. Do not add broad public policies merely to silence this informational finding.
 
 [Advisor explanation](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+
+## v0.2.1 quote-key separation and setup corrections
+
+A setup helper previously provided an APP_SECRET in chat. A shared/chat-supplied value is not a suitable long-term secret. Do not commit or repeat that value. The release separates price-signature security from the account lookup key by deriving a server-only quote key with HMAC-SHA256 keyed by the private Supabase server key and including APP_SECRET and a domain separator. Knowing APP_SECRET alone no longer permits forging a price token. Neither input nor the derived key is exposed by configuration diagnostics.
+
+The account lookup HMAC remains unchanged to preserve existing password-only accounts. **Do not rotate APP_SECRET blindly**: safe credential migration must be designed first. The new separation addresses quote forgery; it is not a claim that the old APP_SECRET has been securely rotated. No secret value was read from the user's Vercel project during this work.
+
+Secrets in the Vercel dashboard cannot be read back simply by opening Edit. Treat missing configuration evidence separately from hidden secret UI. Setup diagnostics return a strict allowlist of variable names only, never lengths, hashes or partial secret values.

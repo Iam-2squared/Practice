@@ -82,3 +82,7 @@ Yahooの利用許可はライブラリやアプリの実装だけでは得られ
 - [Vercel Node.js Functions](https://vercel.com/docs/functions/runtimes/node-js)
 
 本アプリはYahoo・証券会社・取引所の公式サービスではありません。投資助言や実際の投資成果の保証は行いません。
+
+### v0.2.1 update
+
+Setup normalization and safe diagnostics, canonical-origin guidance, private quote-signing key separation, preserved demo accounts across future provider changes, and hardened Yahoo response handling are implemented. Yahoo **public distribution has not been approved or enabled by this update**. `docs/MARKET_DATA.md` records verified provider conditions and the remaining activation gate.

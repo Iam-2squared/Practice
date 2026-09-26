@@ -24,10 +24,17 @@ async function api(action, body, params = {}) {
 function closeDialog() { if(!state.busy) { state.request++; $('#dialog').close(); } }
 function showDialog(html) { $('#dialog').innerHTML=`<div class="dialog-content">${html}</div>`; if(!$('#dialog').open) $('#dialog').showModal(); }
 const dialogHead = title => `<div class="dialog-header"><h2 id="dialog-title">${title}</h2><button class="close" data-action="close" aria-label="閉じる">${icon('close')}</button></div>`;
-function environment() {
- const c=state.config; $('#environment').classList.toggle('real',c?.provider==='yahoo');
- $('#environment').textContent=c ? `${c.provider==='demo'?'DEMO · 架空の固定価格で練習中（実際の株価ではありません）':'Yahoo参考株価 · 遅延あり／リアルタイム保証なし'}${c.storage==='local'?' · ローカル保存':''}` : 'サーバーに接続できません';
+const currentProvider = () => state.account?.market || state.config?.provider || 'demo';
+const wrongOrigin = () => /^https?:$/.test(location.protocol) && state.config?.publicOrigin && location.origin !== state.config.publicOrigin;
+function originNotice() {
+ return wrongOrigin() ? `<div class="notice error">このURLでは口座の作成・売買はできません。<a href="${esc(state.config.publicOrigin)}" rel="noreferrer">本番サイトを開く</a></div>` : '';
 }
+function environment() {
+ const c=state.config;const provider=currentProvider();$('#environment').classList.toggle('real',provider==='yahoo');
+ const label=provider==='demo'?'DEMO · 架空の固定価格で練習中（実際の株価ではありません）':c?.marketStatus==='enabled'?'Yahoo参考株価 · 遅延あり／リアルタイム保証なし':'実株価の配信は停止中 · 口座と履歴は保持されています';
+ $('#environment').textContent=c?`${label}${c.storage==='local'?' · ローカル保存':''}`:'サーバーに接続できません';
+}
+
 const empty = (title,text,action,label,ico='wallet') => `<div class="card empty"><div class="empty-icon">${icon(ico)}</div><h3>${title}</h3><p>${text}</p>${action?`<button class="primary" data-action="${action}">${label}${icon('arrow')}</button>`:''}</div>`;
 function savePending(value) {
  state.pending=value;
@@ -38,6 +45,7 @@ function loadPending() {
 }
 function pendingHtml() { return state.pending ? '<div class="pending" role="alert">結果を確認できていない注文があります。新しい注文の前に確認してください。<button data-action="retry-order">同じ注文番号で結果を確認</button></div>' : ''; }
 function render() {
+ environment();
  document.querySelectorAll('[data-tab]').forEach(button=>{ if(button.dataset.tab===state.tab) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
  if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else renderHistory();
 }
@@ -46,7 +54,7 @@ function renderAssets() {
  const gain=total==null?null:total-10_000_000; const basis=s?.positions.reduce((n,x)=>n+x.costMinor,0)||0;
  const unrealized=p?.holdingsMinor==null ? (a?null:0) : p.holdingsMinor-basis;
  $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">MY PORTFOLIO</p><h1>あなたの資産</h1></div><button class="icon-button" data-action="refresh" aria-label="資産を更新">${icon('refresh')}</button></div>
- ${!state.config?.accountsAvailable?'<div class="notice">口座保存は接続準備中です。現在は画面のプレビューを表示しています。</div>':''}
+ ${originNotice()}${!state.config?.accountsAvailable?'<div class="notice">口座保存は接続準備中です。現在は画面のプレビューを表示しています。</div>':''}
  ${pendingHtml()}
  <section class="hero" aria-label="資産サマリー"><div class="hero-label">資産合計<span class="pill">${a?'現物のみ':'初期資金'}</span></div><div class="balance"><span class="currency">¥</span>${total==null?'—':new Intl.NumberFormat('ja-JP',{maximumFractionDigits:2}).format(total/100)}</div><div class="return"><span>${signed(gain)}</span><span class="return-caption">${gain==null?'評価額を取得できません':`${gain>=0?'+':''}${(gain/100000).toFixed(2)}% · 初期10万円比`}</span></div><dl class="hero-bottom"><div><dt>買付余力（現金）</dt><dd>${yen(s?.cashMinor??10_000_000,2)}</dd></div><div><dt>持ち株の評価額</dt><dd>${yen(a?p?.holdingsMinor:0,2)}</dd></div></dl></section>
  <dl class="small-grid"><div class="stat"><dt>評価損益</dt><dd class="${tone(unrealized)}">${signed(unrealized)}</dd></div><div class="stat"><dt>確定損益</dt><dd class="${tone(s?.realizedMinor||0)}">${signed(s?.realizedMinor||0)}</dd></div></dl>
@@ -63,7 +71,7 @@ function holdingRow(p,q) {
 function renderSearch() {
  $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>銘柄を探す</h1></div><span class="pill">日本株・現物</span></div>
  ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="銘柄名・コードで検索" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div><p class="search-hint">例：トヨタ / 7203 / NTT</p>
- ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、100株単位の仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${state.config.provider==='demo'?'デモ用20銘柄':'Yahoo検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
+ ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、100株単位の仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${currentProvider()==='demo'?'デモ用20銘柄':'Yahoo検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
  <div class="intro">${icon('shield')}<div><strong>買えるのは、いま持っている資金の範囲だけ。</strong><small>100株単位。初期10万円では、1株1,000円以下の銘柄を購入できます。</small></div></div>`;
 }
 function searchRows() {
@@ -98,18 +106,20 @@ async function changeTab(tab) {
 }
 function auth(mode='register') {
  const registering=mode==='register';
+ const blocked=!state.config?.accountsAvailable||wrongOrigin()||(registering&&['permission-required','invalid-provider'].includes(state.config?.marketStatus));
  showDialog(`${dialogHead(registering?'練習用の口座を作る':'おかえりなさい')}<p class="subtext">メールアドレス不要。パスワードだけで入れます。</p>
- ${!state.config?.accountsAvailable?'<div class="notice error">口座保存の接続準備中です。管理者の設定後に利用できます。</div>':''}
+ ${originNotice()}${!state.config?.accountsAvailable?'<div class="notice error">口座保存の接続準備中です。管理者の設定後に利用できます。</div>':''}
+ ${registering&&['permission-required','invalid-provider'].includes(state.config?.marketStatus)?'<div class="notice error">実株価の配信設定・利用許諾が未確認のため、新しい口座の作成は停止中です。既存のデモ口座にはログインできます。</div>':''}
  <form id="auth-form" data-mode="${mode}"><label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
  <div class="password-actions">${registering?'<button type="button" data-action="generate">安全なパスワードを自動生成</button>':'<span></span>'}<button type="button" data-action="show-password">表示する</button></div>
  ${registering?'<label class="field"><span>もう一度入力</span><input name="confirmation" type="password" autocomplete="new-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" name="saved" required><span>パスワードを保存しました。忘れた場合は復旧できず、知っている人はこの口座に入れることを理解しました。</span></label>':''}
- <div id="form-error" role="alert"></div><button class="primary full" type="submit" ${!state.config?.accountsAvailable?'disabled':''}>${registering?'10万円で練習をはじめる':'ログイン'}</button></form>
+ <div id="form-error" role="alert"></div><button class="primary full" type="submit" ${blocked?'disabled':''}>${registering?'10万円で練習をはじめる':'ログイン'}</button></form>
  <p class="fineprint">現実のお金は使いません。他サービスのパスワードは使わないでください。${state.config?.storage==='local'?'現在はこの開発サーバー内だけに保存されます。':''}</p><p class="dialog-foot">${registering?'すでに口座がありますか？':'はじめてですか？'} <button data-action="${registering?'login':'register'}">${registering?'ログイン':'口座を作る'}</button></p>`);
  setTimeout(()=>$('#password')?.focus(),50);
 }
 function accountDialog() {
  if(!state.account)return auth('login'); const a=state.account;
- showDialog(`${dialogHead('アカウント')}<span class="pill">${state.config.provider==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
+ showDialog(`${dialogHead('アカウント')}<span class="pill">${currentProvider()==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
 }
 function deleteAccountDialog() {
  if(state.pending){toast('未確認の注文結果を確認してから削除してください。');return;}
@@ -123,6 +133,7 @@ async function deleteAccount(form) {
  } catch(error){state.busy=false;$('#delete-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;button.disabled=false;}
 }
 async function openStock(symbol,side='buy') {
+ if(wrongOrigin()){showDialog(`${dialogHead('本番サイトを開いてください')}${originNotice()}`);return;}
  if(!state.account)return auth('login'); const id=++state.request;state.side=side;state.stock=null;
  showDialog(`${dialogHead('銘柄情報')}<div class="loading">参考価格を確認しています…</div>`);
  try { const result=await api('quote',undefined,{symbol});if(id!==state.request)return;state.stock=result;renderStock(); }
@@ -131,6 +142,7 @@ async function openStock(symbol,side='buy') {
 function renderStock(quantity=LOT_SIZE) {
  const {quote:q}=state.stock;const held=state.account.state.positions.find(p=>p.symbol===q.symbol)?.shares||0;
  showDialog(`${dialogHead(esc(q.name))}<span class="muted"><small>${esc(q.symbol)} · 現物 / 100株単位</small></span><div class="quote-price">${yen(q.priceMinor,2)}</div><p class="quote-meta">${q.source==='demo'?'DEMO · 実際の株価ではない架空の固定価格':`Yahoo参考価格 · ${stamp(q.quoteAt)} JST · ${q.delayMinutes==null?'遅延時間不明':`${q.delayMinutes}分遅延`}`}</p>
+ ${q.source==='yahoo'&&q.referenceOnly?`<div class="notice">${q.sessionState==='outside-regular'?'取引時間外の参考値':'取引時間情報を確認できない参考値'}での練習です。上の価格時刻を確認してください。</div>`:''}
  <div class="trade-tabs" aria-label="売買区分"><button data-side-toggle="buy" class="${state.side==='buy'?'active':''}" aria-pressed="${state.side==='buy'}">買う</button><button data-side-toggle="sell" class="sell ${state.side==='sell'?'active':''}" aria-pressed="${state.side==='sell'}">売る</button></div>
  <form id="trade-form"><label class="field"><span>株数 <small class="muted">100株 = 1単元</small></span><div class="quantity-input"><button type="button" data-step="-100" aria-label="100株減らす">−</button><input name="quantity" id="quantity" type="number" inputmode="numeric" min="100" max="1000000" step="100" value="${quantity}" required aria-label="注文株数"><button type="button" data-step="100" aria-label="100株増やす">+</button><span>株</span></div></label><div class="quantity-presets"><button type="button" data-quantity="100">100株</button><button type="button" data-quantity="200">200株</button><button type="button" data-quantity="500">500株</button><button type="button" data-quantity="max">${state.side==='buy'?'買付可能数':'売却可能数'}</button></div>
  <dl class="details"><div><dt>1単元（100株）の金額</dt><dd>${yen(q.priceMinor*LOT_SIZE,2)}</dd></div><div><dt>買付余力</dt><dd>${yen(state.account.state.cashMinor,2)}</dd></div><div><dt>保有数</dt><dd>${held.toLocaleString()}株</dd></div><div><dt>概算${state.side==='buy'?'購入':'売却'}金額</dt><dd id="estimate" class="trade-estimate"></dd></div></dl><div id="trade-error" role="alert"></div><button class="${state.side==='buy'?'primary':'danger-button'} full" id="order-next" type="submit">${state.side==='buy'?'購入':'売却'}内容を確認</button></form>
@@ -162,6 +174,7 @@ async function submitOrder(payload=state.pending) {
  }
 }
 async function submitAuth(form) {
+ if(wrongOrigin()||!state.config?.accountsAvailable)return;
  if(state.busy)return;const data=new FormData(form);const password=String(data.get('password')||'');
  if(form.dataset.mode==='register'&&password!==data.get('confirmation')){$('#form-error').innerHTML='<div class="notice error">パスワードが一致しません。</div>';return;}
  state.busy=true;form.querySelector('[type=submit]').disabled=true;$('#form-error').textContent='';

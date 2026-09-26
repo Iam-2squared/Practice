@@ -160,6 +160,13 @@ with sync_playwright() as p:
     expect(page.locator('#order-next')).to_be_disabled()
     expect(page.locator('#trade-error')).to_contain_text('1単元（100株）')
     page.locator('[data-action=close]').click()
+    if DIRECT_HTTP:
+        # UI contract: changing the site's default provider must not relabel an old demo account.
+        config = {'provider':'yahoo','marketStatus':'enabled','accountsAvailable':True,'storage':'local','initialCashMinor':10000000,'lotSize':100,'version':'0.2.1','publicOrigin':'http://localhost:3000'}
+        page.route('**/api/index?action=config', lambda route: route.fulfill(json=config))
+        page.reload(wait_until='networkidle')
+        expect(page.locator('#environment')).to_contain_text('DEMO')
+        page.unroute('**/api/index?action=config')
     page.locator('[data-tab=history]').click()
     page.locator('[data-action=account]').click()
     page.locator('[data-action=delete-account]').click()
@@ -170,6 +177,23 @@ with sync_playwright() as p:
     expect(page.get_by_role('heading',name='10万円から、気軽にはじめよう。')).to_be_visible()
     if DIRECT_HTTP:
         assert not any(c['name'] == 'practice_session' for c in page.context.cookies())
+    if DIRECT_HTTP:
+        # This is a mock config-response UI contract check, not a live provider test.
+        config = {'provider':'demo','marketStatus':'demo','accountsAvailable':True,'storage':'local','initialCashMinor':10000000,'lotSize':100,'version':'0.2.1','publicOrigin':'https://practice.example'}
+        page.route('**/api/index?action=config', lambda route: route.fulfill(json=config))
+        page.reload(wait_until='networkidle')
+        page.get_by_role('button',name='練習をはじめる',exact=True).click()
+        expect(page.locator('#auth-form [type=submit]')).to_be_disabled()
+        expect(page.locator('#dialog').get_by_role('link', name='本番サイトを開く')).to_have_attribute('href','https://practice.example')
+        page.locator('[data-action=close]').click()
+        config['publicOrigin']='http://localhost:3000'
+        config['provider']='yahoo'
+        config['marketStatus']='permission-required'
+        page.reload(wait_until='networkidle')
+        page.get_by_role('button',name='練習をはじめる',exact=True).click()
+        expect(page.locator('#auth-form [type=submit]')).to_be_disabled()
+        expect(page.locator('#dialog')).to_contain_text('利用許諾が未確認')
+        page.unroute('**/api/index?action=config')
     assert not errors, errors
     (OUT/'browser-result.json').write_text(json.dumps({'result':'PASS','transport':('direct browser HTTP with native cookies and CSP' if DIRECT_HTTP else 'isolated renderer + local HTTP API bridge'),'checks':['3-tab layout','password-only registration','search','insufficient balance','100-share increments and presets','non-lot inputs rejected','buyable lots floored to 100','buy confirmation','holding-to-sell','oversell rejected','history','history filter','logout','relogin persistence','360px no overflow','1280px desktop','account deletion with reauthentication','minimum 44px nav targets','no uncaught JS errors'],'responsive':responsive,'lot_size':100,'uncaught_js_errors':errors},ensure_ascii=False,indent=2))
     print('PASS:', 'direct HTTP/native cookies/CSP' if DIRECT_HTTP else 'isolated renderer/API bridge', '| UI purchase/sale/history/auth, 8 viewports; no uncaught JS errors.')

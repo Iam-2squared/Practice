@@ -1,0 +1,16 @@
+{
+  "savedAt": "2026-09-26T17:36:32+09:00",
+  "baseCommit": "ecfc3333167be226be98abf8c03699a194d959fe",
+  "nodeTests": {
+    "passed": 132,
+    "failed": 0
+  },
+  "syntax": "PASS",
+  "nativeLocalBrowser": "BLOCKED_BY_ADMINISTRATOR; no browser policy changes or network proxy used",
+  "githubCI": "PENDING",
+  "marketTests": "synthetic fixtures; not live Yahoo evidence",
+  "productionDatabase": "read-only confirmed 1 demo account, 2 trades, no positions, cashMinor=10000000 before changes",
+  "productionDatabaseWrites": 0,
+  "yahooRedistributionPermission": "NOT_OBTAINED",
+  "vercelConnector": "403 scope authorization error"
+}

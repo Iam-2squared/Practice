@@ -59,3 +59,38 @@ test('deletion requires password and confirmation, revokes every session and lea
  assert.equal(await c.store.getAccount(result.account.id),null);assert.equal((await b.call('history')).status,401);assert.equal((await other.call('portfolio')).status,200);
  assert.equal((await b.call('login',{password:p})).status,401);assert.equal((await c.call('session')).account,null);
 });
+
+test('switching default to Yahoo preserves an existing demo account and history',async()=>{
+ const {c,p,result}=await registered();await c.call('trade',await newOrder(c));let fetches=0;
+ const live=createMarket({provider:'yahoo',yahooApproved:true,clock:()=>time,fetcher:async()=>{fetches++;throw Error('not expected');}});
+ const after=client(c.store,live);assert.equal((await after.call('login',{password:p})).account.id,result.account.id);
+ assert.equal((await after.call('quote',undefined,{symbol:'9432'})).quote.source,'demo');assert.equal((await after.call('history')).items.length,1);
+ const sale=await after.call('trade',await newOrder(after,{side:'sell'}));assert.equal(sale.status,200);assert.equal(sale.account.state.cashMinor,10000000);assert.equal(fetches,0);
+});
+test('missing Yahoo permission blocks new live accounts but not existing demo login',async()=>{
+ const {c,p}=await registered();const after=client(c.store,createMarket({provider:'yahoo'}));
+ const config=await after.call('config');assert.equal(config.accountsAvailable,true);assert.equal(config.marketStatus,'permission-required');
+ assert.equal((await after.call('register',{password:password('unapproved')})).error.code,'MARKET_PERMISSION');
+ assert.equal(Object.keys(c.store.data.accounts).length,1);assert.equal((await after.call('login',{password:p})).status,200);
+ assert.equal((await after.call('quote',undefined,{symbol:'9432'})).quote.source,'demo');
+});
+test('disabling live provider keeps live history and balances without fabricating valuations',async()=>{
+ const store=new MemoryStore();const pw=password('live');const live=client(store,createMarket({provider:'yahoo',yahooApproved:true,clock:()=>time,fetcher:async()=>Response.json({chart:{result:[{meta:{symbol:'9432.T',currency:'JPY',instrumentType:'EQUITY',regularMarketPrice:152,regularMarketTime:time/1000-60}}]}})}));
+ assert.equal((await live.call('register',{password:pw})).account.market,'yahoo');const order=await newOrder(live);assert.equal((await live.call('trade',order)).status,200);
+ const disabled=client(store,createMarket());await disabled.call('login',{password:pw});assert.equal((await disabled.call('history')).items.length,1);
+ const portfolio=await disabled.call('portfolio');assert.equal(portfolio.account.state.cashMinor,8480000);assert.equal(portfolio.totalMinor,null);assert.equal(portfolio.valuationComplete,false);
+ assert.equal((await disabled.call('quote',undefined,{symbol:'9432'})).error.code,'MARKET_DISABLED');
+ assert.equal((await disabled.call('trade',order)).duplicate,true); // Replay does not execute another trade.
+ assert.equal((await disabled.call('trade',{...order,requestId:randomUUID()})).error.code,'MARKET_DISABLED');
+});
+test('private quote-signing key prevents forgery with the account lookup secret alone',async()=>{
+ const {signQuote}=await import('../lib/security.mjs');const store=new MemoryStore();const market=createMarket({clock:()=>time});const privateSigning='private-server-only-fixture-key';
+ const app=createApp({store,market,secret,quoteSecret:privateSigning,origin,clock:()=>time});
+ const registration=await app(new Request(`${origin}/api?action=register`,{method:'POST',headers:{origin,'content-type':'application/json','x-practice-request':'1'},body:JSON.stringify({password:password('signing')})}));
+ const account=(await registration.json()).account;const cookie=registration.headers.get('set-cookie').split(';')[0];
+ const quote=await market.quote('9432');quote.priceMinor=1;
+ const request=token=>new Request(`${origin}/api?action=trade`,{method:'POST',headers:{origin,cookie,'content-type':'application/json','x-practice-request':'1'},body:JSON.stringify({symbol:'9432.T',side:'buy',quantity:100,requestId:randomUUID(),quoteToken:token})});
+ const forged=await app(request(signQuote(quote,secret,account.id,time)));assert.equal(forged.status,400);assert.equal((await forged.json()).error.code,'QUOTE_TOKEN');
+ assert.equal((await store.getAccount(account.id)).state.cashMinor,10000000);
+ const realQuote=await market.quote('9432');assert.equal((await app(request(signQuote(realQuote,privateSigning,account.id,time)))).status,200);
+});
