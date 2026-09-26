@@ -6,7 +6,7 @@ import { createApp } from '../lib/app.mjs';
 import { MemoryStore, SupabaseStore } from '../lib/store.mjs';
 import { createMarket } from '../lib/market.mjs';
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') throw new Error('Local development server cannot run in production.');
-const root = resolve(import.meta.dirname, '..'); const local = resolve(root,'.local');
+const root = resolve(import.meta.dirname, '..'); const local = resolve(root,'.local-crypto-fx');
 await mkdir(local, { recursive: true, mode: 0o700 });
 let secret = process.env.APP_SECRET;
 if (!secret) {
@@ -25,7 +25,7 @@ else {
   store = new FileStore(data);
 }
 const port = Number(process.env.PORT || 3000); const origin = `http://localhost:${port}`;
-const market = createMarket({ provider: process.env.MARKET_PROVIDER || 'demo', yahooApproved: process.env.YAHOO_DATA_USE_APPROVED === 'true' });
+const market = createMarket({ store, coinGeckoKey: process.env.COINGECKO_DEMO_API_KEY || '' });
 const app = createApp({ store, market, secret, origin, secure:false, storageName: process.env.PRACTICE_STORE === 'supabase' ? 'supabase' : 'local' });
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.json':'application/json'};
 const security = {

@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: practice-ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   app:
     runs-on: ubuntu-latest
@@ -41,6 +44,7 @@ jobs:
       - name: Create isolated Supabase-like roles
         run: psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;'
       - run: psql -v ON_ERROR_STOP=1 -f db/bootstrap.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/crypto_fx.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/verify.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/smoke.sql
 
@@ -58,15 +62,13 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Start isolated local server
         run: |
-          node scripts/dev.mjs > /tmp/practice-dev.log 2>&1 &
+          node tests/ui-server.mjs > /tmp/practice-dev.log 2>&1 &
           for attempt in $(seq 1 30); do
             if curl -fsS 'http://localhost:3000/api/index?action=config' >/dev/null; then exit 0; fi
             sleep 1
           done
           exit 1
       - run: python tests/browser_smoke.py
-        env:
-          PRACTICE_BROWSER_HTTP: '1'
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-ui-evidence
@@ -83,5 +85,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify new public deployment without credentials or user writes
+      - name: Verify config only, no user writes
         run: node scripts/public-smoke.mjs
