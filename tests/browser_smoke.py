@@ -55,7 +55,7 @@ with sync_playwright() as p:
         }''')
         page.add_script_tag(content=(ROOT/'public/app.js').read_text(),type='module')
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
-    assert page.locator('nav button').count()==3
+    assert page.locator('nav button').count()==4
     page.screenshot(path=str(OUT/'welcome-mobile.png'))
     page.get_by_role('button',name='練習をはじめる',exact=True).click()
     password='BrowserTest_Only_'+str(uuid.uuid4())
