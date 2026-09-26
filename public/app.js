@@ -46,7 +46,7 @@ function pendingHtml() { return state.pending ? '<div class="pending" role="aler
 function render() {
  environment();
  document.querySelectorAll('[data-tab]').forEach(button=>{ if(button.dataset.tab===state.tab) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
- if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else if(state.tab==='ranking') renderRanking(); else renderHistory();
+ if(state.tab==='assets') renderAssets(); else if(state.tab==='crypto'||state.tab==='fx') renderSearch(); else if(state.tab==='ranking') renderRanking(); else renderHistory();
 }
 function renderAssets() {
  const a=state.account; const p=state.portfolio; const s=a?.state; const total=a?(p?.totalMinor??null):10_000_000;
@@ -58,8 +58,6 @@ function renderAssets() {
  <section class="hero" aria-label="資産サマリー"><div class="hero-label">資産合計<span class="pill">${a?'現物のみ':'初期資金'}</span></div><div class="balance"><span class="currency">¥</span>${total==null?'—':new Intl.NumberFormat('ja-JP',{maximumFractionDigits:2}).format(total/100)}</div><div class="return"><span>${signed(gain)}</span><span class="return-caption">${gain==null?'評価額を取得できません':`${gain>=0?'+':''}${(gain/100000).toFixed(2)}% · 初期10万円比`}</span></div><dl class="hero-bottom"><div><dt>買付余力（現金）</dt><dd>${yen(s?.cashMinor??10_000_000,2)}</dd></div><div><dt>持ち単位の評価額</dt><dd>${yen(a?p?.holdingsMinor:0,2)}</dd></div></dl></section>
  <dl class="small-grid"><div class="stat"><dt>評価損益</dt><dd class="${tone(unrealized)}">${signed(unrealized)}</dd></div><div class="stat"><dt>確定損益</dt><dd class="${tone(s?.realizedMinor||0)}">${signed(s?.realizedMinor||0)}</dd></div></dl>
  ${p&&!p.valuationComplete?'<div class="notice error">一部の単位価を取得できません。資産合計は未算出です。保有数・現金は保存されています。</div>':''}
- <div class="row-head"><h2>持ち単位<span class="count">${s?.positions.length||0}銘柄</span></h2><button class="link-button" data-action="to-trade">Crypto / FXを探す ↗</button></div>
- ${s?.positions.length?`<div class="card">${s.positions.map(x=>holdingRow(x,p?.quotes[x.symbol])).join('')}</div>`:empty(a?'最初の仮想資産から、はじめよう。':'10万円から、気軽にはじめよう。',a?'仮想資産単位で、現物取引を練習。<br>持ち単位はここに表示されます。':'メール登録も、入金も不要。<br>パスワードをひとつ作って、単位の練習をはじめよう。',a?'to-trade':'register',a?'銘柄を探す':'練習をはじめる')}
  ${!a?'<p class="zero-note">すでに口座がある方は <button class="link-button" data-action="login">ログイン</button></p>':''}
  <div class="tip"><strong>まずは一単元。自分のペースで。</strong><br>仮想資産単位のシンプルな練習モード。信用取引・空売りはありません。</div>`;
 }
@@ -68,8 +66,8 @@ function holdingRow(p,q) {
  return `<button class="stock-row" data-symbol="${esc(p.symbol)}" data-side="sell"><span class="stock-avatar">${esc(p.symbol.slice(0,4))}</span><span class="stock-info"><span class="stock-name">${esc(p.name)}</span><span class="stock-meta">${(p.quantity/SCALE).toLocaleString(undefined,{maximumFractionDigits:6})} ${esc(p.unit||'')} · 平均 ${yen(p.costMinor*SCALE/p.quantity,2)}</span></span><span class="stock-value">${yen(value,2)}<small class="${tone(gain)}">${gain==null?'単位価取得不可':signed(gain)}</small></span>${icon('chevron','chevron')}</button>`;
 }
 function renderSearch() {
- $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>Crypto / FXを探す</h1></div><span class="pill">Crypto / FX・現物</span></div>
- ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="BTC / ETH / USDJPY など" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div><div class="filter" aria-label="資産種別"><button data-asset-type="all" class="${state.assetType==='all'?'active':''}">すべて</button><button data-asset-type="crypto" class="${state.assetType==='crypto'?'active':''}">仮想通貨</button><button data-asset-type="fx" class="${state.assetType==='fx'?'active':''}">為替</button></div>
+ $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">DISCOVER & TRADE</p><h1>${state.tab==='crypto'?'仮想通貨':'FX'}</h1></div><span class="pill">Crypto / FX・現物</span></div>
+ ${pendingHtml()}<div class="search-box">${icon('search')}<label class="sr-only" for="search">銘柄名・コードで検索</label><input id="search" type="search" placeholder="BTC / ETH / USDJPY など" autocomplete="off" value="${esc(state.query)}" maxlength="80"></div>
  ${!state.account?empty('ログインして銘柄を探そう','口座を作ると、仮想資産単位の仮想売買を練習できます。','register','口座を作る','search'):`<div class="row-head"><h2>${state.query?'検索結果':'銘柄一覧'}</h2><span class="muted"><small>${currentProvider()==='demo'?'デモ用20銘柄':'データ提供元検索'}</small></span></div><div id="search-results">${searchRows()}</div>`}
  <div class="intro">${icon('shield')}<div><strong>買えるのは、いま持っている資金の範囲だけ。</strong><small>仮想資産単位。初期10万円では、1単位1,000円以下の銘柄を購入できます。</small></div></div>`;
 }
@@ -79,7 +77,7 @@ function searchRows() {
 let searchTimer; let searchVersion=0;
 async function searchStocks(query) {
  if(!state.account) return; const id=++searchVersion;
- try { const result=await api('search',undefined,{q:query,type:state.assetType}); if(id!==searchVersion)return; state.search=result.items; if(state.tab==='trade'&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
+ try { const result=await api('search',undefined,{q:query,type:state.assetType}); if(id!==searchVersion)return; state.search=result.items; if((state.tab==='crypto'||state.tab==='fx')&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
  catch(error){if(id===searchVersion&&$('#search-results'))$('#search-results').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
 }
 function renderRanking() {
@@ -110,7 +108,7 @@ async function history(more=false) {
 }
 async function changeTab(tab) {
  state.tab=tab;render();
- try {if(tab==='assets')await refreshPortfolio();if(tab==='trade')await searchStocks(state.query);if(tab==='ranking')await leaderboard();if(tab==='history')await history();}catch(error){toast(error.message);}
+ try {if(tab==='assets')await refreshPortfolio();if(tab==='crypto'||tab==='fx'){state.assetType=tab;state.query='';await searchStocks('');}if(tab==='ranking')await leaderboard();if(tab==='history')await history();}catch(error){toast(error.message);}
 }
 function auth(mode='register') {
  const registering=mode==='register';
@@ -216,7 +214,7 @@ document.addEventListener('click',async event=>{
   case 'login':auth('login');break;
   case 'account':accountDialog();break;
   case 'delete-account':deleteAccountDialog();break;
-  case 'to-trade':if(state.account)changeTab('trade');else auth('register');break;
+  case 'to-trade':if(state.account)changeTab('crypto');else auth('register');break;
   case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else if(state.tab==='ranking')await leaderboard();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
   case 'generate':{const bytes=crypto.getRandomValues(new Uint8Array(32));const password=btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');$('#password').value=password;$('#password').type='text';$('[name=confirmation]').value=password;toast('表示されたパスワードを安全な場所に保存してください。');break;}
   case 'show-password':$('#password').type=$('#password').type==='password'?'text':'password';b.textContent=$('#password').type==='password'?'表示する':'隠す';break;
