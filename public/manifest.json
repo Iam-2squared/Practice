@@ -2,7 +2,7 @@
   "name": "Practice — Crypto / FX",
   "short_name": "Practice",
   "lang": "ja",
-  "start_url": "/",
+  "start_url": "/app.html",
   "display": "standalone",
   "background_color": "#f5f6fa",
   "theme_color": "#f5f6fa",
