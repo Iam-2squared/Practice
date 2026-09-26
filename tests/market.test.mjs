@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createMarket,parseYahooChart} from '../lib/market.mjs';
+const now=1_800_000_000_000;
+const chart=(change={})=>({chart:{result:[{meta:{symbol:'7203.T',currency:'JPY',instrumentType:'EQUITY',regularMarketPrice:2800.5,regularMarketTime:now/1000-60,...change}}],error:null}});
+test('Yahoo values include truthful quote timestamps',()=>{const q=parseYahooChart(chart(),'7203.T',now);assert.equal(q.priceMinor,280050);assert.equal(q.quoteAt,now-60000);assert.equal(q.source,'yahoo');});
+for(const change of [{currency:'USD'},{instrumentType:'ETF'},{regularMarketPrice:0},{regularMarketPrice:'2800'},{regularMarketTime:0},{regularMarketTime:now/1000+120},{symbol:'6758.T'}])test('invalid Yahoo metadata fails closed: '+JSON.stringify(change),()=>assert.throws(()=>parseYahooChart(chart(change),'7203.T',now)));
+test('old off-session quote is not tradable',()=>assert.throws(()=>parseYahooChart(chart({regularMarketTime:now/1000-6*86400}),'7203.T',now),e=>e.code==='MARKET_STALE'));
+test('old in-session quote is not tradable',()=>assert.throws(()=>parseYahooChart(chart({regularMarketTime:now/1000-1801,currentTradingPeriod:{regular:{start:now/1000-3600,end:now/1000+3600}}}),'7203.T',now)));
+test('demo fixtures are explicitly marked non-market data',async()=>{const q=await createMarket().quote('7203');assert.equal(q.source,'demo');assert.equal(q.quoteAt,null);assert.equal(q.previousCloseMinor,null);});
+test('Yahoo requires explicit data-use approval before any fetch',async()=>{let fetched=false;const m=createMarket({provider:'yahoo',fetcher:async()=>{fetched=true;}});await assert.rejects(m.quote('7203'),e=>e.code==='MARKET_PERMISSION');assert.equal(fetched,false);});
+test('network errors do not silently use demo quotes',async()=>{const m=createMarket({provider:'yahoo',yahooApproved:true,fetcher:async()=>{throw new Error('offline');}});await assert.rejects(m.quote('7203'),e=>e.code==='MARKET_UNAVAILABLE');});
+test('shared quote cache avoids repeat requests',async()=>{let n=0;const m=createMarket({provider:'yahoo',yahooApproved:true,clock:()=>now,fetcher:async()=>{n++;return Response.json(chart());}});await m.quote('7203');await m.quote('7203');assert.equal(n,1);});
+test('demo search handles Japanese names and symbol codes',async()=>{const m=createMarket();assert.equal((await m.search('トヨタ'))[0].symbol,'7203.T');assert.equal((await m.search('７２０３'))[0].symbol,'7203.T');});
