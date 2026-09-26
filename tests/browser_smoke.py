@@ -59,6 +59,7 @@ with sync_playwright() as p:
     page.screenshot(path=str(OUT/'welcome-mobile.png'))
     page.get_by_role('button',name='練習をはじめる',exact=True).click()
     password='BrowserTest_Only_'+str(uuid.uuid4())
+    page.locator('[name=username]').fill('browser_'+uuid.uuid4().hex[:8])
     page.locator('#password').fill(password)
     page.locator('[name=confirmation]').fill(password)
     page.locator('[name=saved]').check()
