@@ -34,7 +34,9 @@ create table if not exists public.practice_accounts (
  id uuid primary key default gen_random_uuid(),
  lookup text unique not null check (lookup ~ '^[a-f0-9]{64}$'),
  salt text not null check (salt ~ '^[a-f0-9]{32}$'),
- password_hash text not null check (password_hash ~ '^[a-f0-9]{128} check (market in ('demo','yahoo')),
+ password_hash text not null check (password_hash ~ '^[a-f0-9]{128}$'),
+ username text not null check (char_length(username) between 2 and 20 and username=btrim(username) and username !~ '[[:cntrl:]<>]'),
+ market text not null check (market in ('demo','yahoo')),
  state jsonb not null check (public.practice_valid_state(state)),
  created_at timestamptz not null default now()
 );
