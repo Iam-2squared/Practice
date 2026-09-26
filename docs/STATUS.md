@@ -1,6 +1,6 @@
 # Practice 0.5 — Crypto / FX price charts
 
-保存時刻: 2026-09-26 23:45 JST
+保存時刻: 2026-09-26 23:54 JST
 
 作業ブランチ: `feature/price-charts`
 
@@ -27,13 +27,15 @@
 - `npm run check`: 21 JavaScript files PASS。`npm run build`: PASS。`git diff --check`: PASS。
 - HTTPブラウザテストは、期間高速切替、数量保持、pointer/touch、320〜1280px、閉鎖/ログアウト競合を追加済み。
 - PR [#5](https://github.com/Iam-2squared/Practice/pull/5) を作成。head `b955604c93cfc8f4bc30345498e73bc835fef06e` のCI Run `36249392595` は app / database / mobile-ui が全成功し、Vercel previewもReady。
+- PR #5はmerge commit `dfba3386ba839a61e91fa8712ae3527a22256ffa` でmainへ反映。main CI Run `36249664369` は app / database / mobile-ui / public-deploymentが全成功し、Vercel production checkもsuccess。
 - Production Supabaseへmigration `20260926144350 practice_price_charts_v05` を適用。適用前後で既存3口座・4取引・3ウォレット・4セッションの件数は不変。新規2テーブルはRLS有効、anon/authenticated権限なし、service_role限定。claim関数はtransaction rollback内で動作確認。
 - Supabase advisorはperformance指摘なし。securityのINFOは、server-onlyテーブルでRLSを有効にしbrowser向けpolicyを意図的に置かない既存方式（新規2テーブルを含む）。
 
 ## 未完了・次の手順
 
 - ローカル環境にはChromium/Postgresがなく、Playwright Chromium取得も実行環境の配布URL制限で失敗。代わりにGitHub CIの実HTTP Playwright `mobile-ui` とPostgres `database` を成功確認済み。
-- PR #5の最終文書コミット後CI、merge、main CI、Vercel本番反映、実CoinGecko Demo / Frankfurterチャート、本番スマホ/PC操作は未確認。
+- 本番v0.5.0とCrypto 4銘柄の24H実履歴（各288〜289点、約5分粒度）を確認。本番のFX検証では、期間開始日が休日のときFrankfurterが返す直前営業日の境界点を拒否する問題を検出。架空補間はせず、選択期間外の境界点だけを除外する修正と回帰テストを `fix/fx-chart-weekend-range` で作業中。
+- 上記FX修正のPR/CI/merge/本番反映、FX 4通貨の実データ再確認、本番の認証済みチャート画面操作は未確認。一時検証口座は売買0件で削除済み。
 - Vercel管理コネクタはチームscope 403。環境変数や課金設定は変更せず、GitHub連携check、公開HTTPS、runtime errorで検証する。
 
-次: 最終文書コミットのCI → PR #5 merge → main CI/Vercel → 隔離した一時口座で実データ表示を確認し、売買せず削除する。
+次: FX境界修正PR → CI → merge → main CI/Vercel → 隔離した一時口座で全8銘柄の実履歴を再確認し、売買せず削除する。
