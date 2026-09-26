@@ -1,6 +1,6 @@
 # Practice v0.2 — 最新状況
 
-保存時刻: **2026-09-26 14:35:08 JST**
+保存時刻: **2026-09-26 14:53:41 JST**
 Repository: `Iam-2squared/Practice`。基点: `69e06a5eb61dd169de5244f75cdb9986fec867d7`。
 
 ## 完了した変更
@@ -18,7 +18,8 @@ Repository: `Iam-2squared/Practice`。基点: `69e06a5eb61dd169de5244f75cdb9986f
 - 1／99／101／150／199株の拒否、買付可能数の切り下げ、資金不足、保有超過、±100操作も検証。
 - 320、360、375、390、430、768、844（横向き）、1280px。全3タブと売買シートの横はみ出しなし。ナビのタップ高さ44px以上。未捕捉JSエラーなし。
 - 検証はPlaywright 1.57.0 + Chromium。agent-browserは未導入でオフラインキャッシュにもなく利用不可。管理ブラウザーのlocalhost直接ナビゲーションはERR_BLOCKED_BY_ADMINISTRATORのため、前版と同じ**隔離レンダラー＋実HTTP APIブリッジ**で検証。ブラウザーの制限は変更していません。
-- **iOS Safari実機・公開URLでのCookie/CSP/REST検証は未実施**。表示テストで本番E2E済みとは扱いません。
+- GitHub CIでは別途、通常のHTTPページをChromiumで直接開いて検証。Cookie/CSPヘッダー、HttpOnly・SameSite属性、リロード後のログイン維持、購入・売却・削除、8画面幅の表示検証に成功。ブラウザーのfetchやCookieを差し替えていません。
+- **iOS Safari実機・公開Vercel HTTPS/Supabase REST接続の検証は未実施**。ローカルHTTPの成功を本番E2E済みとは扱いません。
 
 ## Supabase — 作成・スキーマ・実SQL検証済み
 
@@ -37,9 +38,11 @@ Security AdvisorはERROR/WARNなし、意図したserver-only設計によるRLS-
 
 ## GitHub / 次の方針
 
-元のv0.1 CI（run 36220044097）はapp/database両方SUCCESSを確認済み。
-v0.2はこの保存内容をGitHubへ反映し、対象コミットのapp/database/モバイルUIのCIを確認する段階です。
-最新のCI結果はGitHub Actionsの対象HEADで確認してください。過去のCI成功を新HEADの成功に流用しません。
+検証済み実装コミット: `855d48d1662f35b13dbba5ba51e18f38b039577d`。
+検証済みソースtree: `9fbcdf92d23ed704013ef9bfdf5d8985164c3ab3`。
+GitHub CI run **36221996836**: **app / database / mobile-ui の3ジョブすべてSUCCESS**。Nodeテスト88件、構文・ビルド、SQL検証、通常HTTPでのモバイルUI検証が完了。
+この記録更新はドキュメントのみで、上記の検証済みアプリ・テスト・DBコードから変更していません。
+結果一覧は `docs/verification/ci-v0.2.json`。CI URL: https://github.com/Iam-2squared/Practice/actions/runs/36221996836
 接続復旧後は `docs/DEPLOY.md` に従い、作成済みDBを使って本番公開を完了する。DBを再作成したりデモ価格をYahoo価格として表示したりしない。
 
 `.local/`、秘密値、テスト口座のパスワード・Cookie・状態は保存対象外です。

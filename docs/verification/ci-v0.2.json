@@ -1,0 +1,49 @@
+{
+  "recorded_at": "2026-09-26T14:53:41+09:00",
+  "repository": "Iam-2squared/Practice",
+  "commit": "855d48d1662f35b13dbba5ba51e18f38b039577d",
+  "tree": "9fbcdf92d23ed704013ef9bfdf5d8985164c3ab3",
+  "run_id": 36221996836,
+  "url": "https://github.com/Iam-2squared/Practice/actions/runs/36221996836",
+  "jobs": [
+    {
+      "name": "app",
+      "id": 108348866990,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "database",
+      "id": 108348867094,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "mobile-ui",
+      "id": 108348867109,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "node_tests": {
+    "passed": 88,
+    "failed": 0
+  },
+  "browser_transport": "direct HTTP with native cookies, unmodified fetch and CSP header checks",
+  "viewport_widths": [
+    320,
+    360,
+    375,
+    390,
+    430,
+    768,
+    844,
+    1280
+  ],
+  "remaining": [
+    "Vercel deployment and production environment configuration",
+    "Production HTTPS to Supabase REST end-to-end validation",
+    "Yahoo live-data access and public-use permission verification",
+    "iOS Safari physical-device verification"
+  ]
+}
