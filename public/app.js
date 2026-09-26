@@ -7,7 +7,7 @@ const tone = n => n < 0 ? 'negative' : 'positive';
 const stamp = t => t ? new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(t) : '架空の固定価格';
 const paths = {arrow:'M5 12h14m-5-5 5 5-5 5',back:'m15 6-6 6 6 6',chevron:'m9 5 7 7-7 7',close:'m6 6 12 12M6 18 18 6',refresh:'M20 7v5h-5M4 17v-5h5M6.5 6a7 7 0 0 1 11.7 1.5L20 12M4 12l1.8 4.5A7 7 0 0 0 17.5 18',search:'M16 16l5 5',wallet:'M4 7h16v14H4zM4 7V3h13v4M15 12h5v5h-5z',user:'M7 21v-3a5 5 0 0 1 10 0v3M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',shield:'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 12l3 3 5-6',chart:'M4 4v16h17M8 16v-5M13 16V7M18 16v-8',check:'m5 12 4 4L20 5',history:'M5 3h14v18H5zM8 8h8M8 12h8M8 16h5',key:'M14 8a5 5 0 1 0-4 5L21 2M17 6l3 3'};
 const icon = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name === 'search' ? '<circle cx="10.5" cy="10.5" r="6.5"/>' : ''}<path d="${paths[name] || paths.chart}"/></svg>`;
-const state = { tab:'assets', account:null, portfolio:null, config:null, search:[], history:[], offset:0, hasMore:false, filter:'all', stock:null, side:'buy', pending:null, busy:false, query:'', request:0 };
+const state = { tab:'assets', account:null, portfolio:null, config:null, search:[], history:[], ranking:[], offset:0, hasMore:false, filter:'all', stock:null, side:'buy', pending:null, busy:false, query:'', request:0 };
 let toastTimer;
 function toast(text) { $('#toast').textContent=text; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4200); }
 async function api(action, body, params = {}) {
@@ -47,7 +47,7 @@ function pendingHtml() { return state.pending ? '<div class="pending" role="aler
 function render() {
  environment();
  document.querySelectorAll('[data-tab]').forEach(button=>{ if(button.dataset.tab===state.tab) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
- if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else renderHistory();
+ if(state.tab==='assets') renderAssets(); else if(state.tab==='trade') renderSearch(); else if(state.tab==='ranking') renderRanking(); else renderHistory();
 }
 function renderAssets() {
  const a=state.account; const p=state.portfolio; const s=a?.state; const total=a?(p?.totalMinor??null):10_000_000;
@@ -83,6 +83,15 @@ async function searchStocks(query) {
  try { const result=await api('search',undefined,{q:query}); if(id!==searchVersion)return; state.search=result.items; if(state.tab==='trade'&&$('#search-results'))$('#search-results').innerHTML=searchRows(); }
  catch(error){if(id===searchVersion&&$('#search-results'))$('#search-results').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
 }
+function renderRanking() {
+ $('#main').innerHTML=`<div class='section-head'><div><p class='eyebrow'>TOTAL ASSET RANKING</p><h1>総資産ランキング</h1></div><button class='icon-button' data-action='refresh' aria-label='ランキングを更新'>${icon('refresh')}</button></div>
+ ${!state.account?empty('ログインするとランキングを見られます','ユーザーネームと総資産だけを表示します。','login','ログイン','chart'):state.ranking.length?`<div class='card leaderboard'>${state.ranking.map(x=>`<div class='rank-row ${x.me?'me':''}'><span class='rank-number'>${x.rank??'—'}</span><span class='rank-name'>${esc(x.username)}${x.me?'<small>あなた</small>':''}</span><span class='rank-total'>${yen(x.totalMinor,0)}</span></div>`).join('')}</div>`:'<div class="card empty"><h3>ランキングを読み込んでいます</h3><p>総資産を現在の参考価格で評価します。</p></div>'}
+ <p class='fineprint'>総資産＝現金＋保有株の現在の参考評価額。株価を取得できない口座は順位を表示しません。</p>`;
+}
+async function leaderboard() {
+ if(!state.account){state.ranking=[];return;}
+ const result=await api('leaderboard');state.ranking=result.items;if(state.tab==='ranking')render();
+}
 function renderHistory() {
  const rows=state.history.filter(t=>state.filter==='all'||t.side===state.filter);
  $('#main').innerHTML=`<div class="section-head"><div><p class="eyebrow">YOUR ACTIVITY</p><h1>取引の記録</h1></div><button class="icon-button" data-action="refresh" aria-label="履歴を更新">${icon('refresh')}</button></div>
@@ -102,7 +111,7 @@ async function history(more=false) {
 }
 async function changeTab(tab) {
  state.tab=tab;render();
- try {if(tab==='assets')await refreshPortfolio();if(tab==='trade')await searchStocks(state.query);if(tab==='history')await history();}catch(error){toast(error.message);}
+ try {if(tab==='assets')await refreshPortfolio();if(tab==='trade')await searchStocks(state.query);if(tab==='ranking')await leaderboard();if(tab==='history')await history();}catch(error){toast(error.message);}
 }
 function auth(mode='register') {
  const registering=mode==='register';
@@ -201,10 +210,10 @@ document.addEventListener('click',async event=>{
   case 'account':accountDialog();break;
   case 'delete-account':deleteAccountDialog();break;
   case 'to-trade':if(state.account)changeTab('trade');else auth('register');break;
-  case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
+  case 'refresh':if(state.account){b.disabled=true;if(state.tab==='assets')await refreshPortfolio();else if(state.tab==='ranking')await leaderboard();else await history();toast('更新しました。');}else toast('口座を作ると資産を保存できます。');break;
   case 'generate':{const bytes=crypto.getRandomValues(new Uint8Array(32));const password=btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');$('#password').value=password;$('#password').type='text';$('[name=confirmation]').value=password;toast('表示されたパスワードを安全な場所に保存してください。');break;}
   case 'show-password':$('#password').type=$('#password').type==='password'?'text':'password';b.textContent=$('#password').type==='password'?'表示する':'隠す';break;
-  case 'logout':await api('logout',{});state.account=null;state.portfolio=null;state.pending=null;state.history=[];state.search=[];state.request++;closeDialog();render();toast('ログアウトしました。');break;
+  case 'logout':await api('logout',{});state.account=null;state.portfolio=null;state.pending=null;state.history=[];state.ranking=[];state.search=[];state.request++;closeDialog();render();toast('ログアウトしました。');break;
   case 'refresh-quote':openStock(state.stock.quote.symbol,state.side);break;
   case 'back-order':renderStock();break;
   case 'retry-order':await submitOrder();break;
