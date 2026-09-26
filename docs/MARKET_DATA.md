@@ -1,49 +1,27 @@
-# Market data: verified status and publication boundary
+# Market data — 0.4
 
-Checked: 2026-09-26 JST. This is a technical integration note, not a legal opinion.
+Japan-equity active data retrieval was removed. Saved legacy orders remain private account records.
 
-## Current production
+## CoinGecko Demo
 
-Production uses `demo`, a synthetic fixed-price provider. Do not describe this as live data. Read-only DB verification found one demo account, two trades, zero positions and JPY 100,000 cash. This change performs no production SQL writes or migrations.
+Official Demo /simple/price with `x-cg-demo-api-key`; JPY prices for bitcoin, ethereum, solana, ripple in one request and `include_last_updated_at=true`.
+https://docs.coingecko.com/v3.0.1/reference/simple-price
+https://www.coingecko.com/en/api_terms
+https://www.coingecko.com/en/api/pricing
 
-## Yahoo public distribution is not approved
+A missing key disables crypto quotes rather than silently trying another API. 401/403/429 do not trigger identity or endpoint workarounds. Attribution and a clickable source link are shown. This implementation does not claim that the free Demo plan permits every commercial or redistribution use; assess the actual plan and use case before monetization or wider release.
 
-Yahoo's official help explicitly says not to redistribute information displayed on or provided by Yahoo Finance:
-https://uk.help.yahoo.com/kb/SLN2352.html
+One shared batch refresh at most every five minutes, across Vercel instances. At that ceiling continuous 31-day use is 8,928 calls, excluding any other clients sharing the same key. No background polling. Confirm the current plan allowance; this is a traffic estimate, not a free-service guarantee.
 
-Yahoo Japan's separate notice prohibits repurposing/selling stock information:
-https://finance.yahoo.co.jp/feature/promotion/caution
+Crypto requires the provider timestamp, no more than 15 minutes old, not future-dated by more than 30 seconds. The cache cannot make an old quote fresh.
 
-Using a chart endpoint, caching, adding attribution, calling the app educational, or accepting delayed quotes does not itself establish distribution permission. `YAHOO_DATA_USE_APPROVED=true` is an operator assertion, **not a license**. Do not change it to true simply to get past an error. No permission has been obtained for this public app. No paid subscription has been purchased.
+## Frankfurter
 
-Official alternative to evaluate: JPX 15-minute-delayed stock API explicitly covers acquisition/external distribution subject to its agreement and applicable fees. Do not assume a free API key or blanket free distribution:
-https://www.jpx.co.jp/markets/paid-info-equities/realtime/06.html
+https://frankfurter.dev/docs/v1/
+https://frankfurter.dev/
 
-Twelve Data also distinguishes personal/internal plans from external display/redistribution and requires additional approval for non-US price data:
-https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage
+Daily reference rates, not intraday/real-time. One EUR-base batch provides JPY, USD, GBP and AUD; cross rates are calculated in JPY per unit. The calendar date is preserved; no intraday timestamp is invented. Missing/invalid/future or >10-day-old dates block quotes. Cached four hours, keyed separately from crypto. Show the data source and actual rate date.
 
-A paid personal subscription is not automatically a public-app redistribution license. Obtain a quote/approval for the actual audience, instruments, display and simulated execution use before activating a provider. No substitute provider is silently enabled.
+## Execution
 
-## Implemented adapter behavior (fixture-tested, NOT a live-access claim)
-
-- Japanese `.T` equities and JPY only; reject unknown currency/type, zero/invalid price, and invalid/future timestamp.
-- Freshness: up to 30 minutes when in-session or session metadata is unknown; a known outside-session reference may be at most 5 days old. Quote time is kept separately from HTTP fetch time.
-- Outside-session prices are explicitly labelled reference prices. Simulator may execute against those references; it does not reproduce exchange hours, liquidity, board prices, taxes, dividends or splits.
-- Prefer `previousClose` over the chart-window starting close. Request one-day chart metadata.
-- Per-instance 15-second quote cache plus concurrent request coalescing; freshness is revalidated on cache use. This is NOT distributed caching across all Vercel instances.
-- HTTP 401/403 stop retrieval; HTTP 429 honors Retry-After. No proxy/identity/cookie workarounds. Max 512 KiB response and 8-second request timeout.
-- Failed live prices never silently fall back to synthetic prices. A local-name catalog fallback is not a price fallback.
-
-## Switching without deleting existing practice data
-
-An account's `market` value remains immutable. After changing the site's default provider to Yahoo, existing demo accounts continue to use the demo provider and retain all history and balances. A new approved live-price account requires a different password. Do not relabel or reset the old account.
-
-If live data is later disabled, a live account retains login, deletion, history and cash balances. Valuations requiring missing prices are unknown, not zero or purchase price; new live trades are blocked. Replaying an already committed order remains idempotent.
-
-## Activation gate
-
-1. Obtain permission covering actual access and redistribution; store the agreement privately, not in this public repository.
-2. Verify the provider from the intended hosting runtime and inspect quote timestamps, market/currency validation and limits. This has NOT yet passed for live Yahoo.
-3. Confirm publication limits/costs with the user. Do not purchase a plan on assumption.
-4. Only then change production `MARKET_PROVIDER` and the relevant approval flag and deploy.
-5. Verify a separate live-price account, delayed/reference labels, persistence and failure handling. Do not use the user's demo password or delete their history.
+Simulation, no broker/exchange transactions. Prices rounded to 0.01 JPY. Quantities use integer millionths; monetary products and basis use integer arithmetic. Purchases round up and sales/value round down to avoid creating profit by splitting rounded orders. Signed per-account quotes expire in 60 seconds and their original provider date is checked again at execution. Failed valuation is unknown, never zero or cost price.

@@ -1,0 +1,2 @@
+-- Replaced destructive draft. Do NOT delete old trades or reset old state.
+-- Apply db/crypto_fx.sql for the additive wallet migration instead.

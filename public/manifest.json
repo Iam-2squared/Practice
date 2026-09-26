@@ -1,1 +1,18 @@
-{"name":"Practice — 日本株の仮想売買","short_name":"Practice","lang":"ja","start_url":"/","display":"standalone","background_color":"#f5f6fa","theme_color":"#f5f6fa","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
+{
+  "name": "Practice — Crypto / FX",
+  "short_name": "Practice",
+  "lang": "ja",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f6fa",
+  "theme_color": "#f5f6fa",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "description": "仮想通貨と外貨の仮想売買練習"
+}

@@ -1,59 +1,46 @@
--- Service-role integration test. All fixture data is rolled back.
+-- Service-role integration fixtures. No real user account is changed; always rolled back.
 begin;
 set local role service_role;
 do $$
-declare aid uuid; s jsonb; t jsonb; r jsonb; denied boolean; q integer;
- lookup_a text := replace(gen_random_uuid()::text,'-','');
+declare aid uuid; s jsonb; t jsonb; r jsonb; denied boolean; token uuid;
+ stamp bigint:=floor(extract(epoch from statement_timestamp())*1000); tag text:=replace(gen_random_uuid()::text,'-','');
 begin
- if has_table_privilege('anon','public.practice_accounts','select')
-    or has_table_privilege('authenticated','public.practice_accounts','update')
-    or has_function_privilege('anon','public.practice_commit_trade(uuid,bigint,jsonb,jsonb,text)','execute') then raise exception 'Public exposure'; end if;
- if public.practice_valid_state('{}') or public.practice_valid_state(null) then raise exception 'Missing state fields accepted'; end if;
- insert into public.practice_accounts(lookup,salt,password_hash,username,market,state)
- values(repeat(lookup_a,2),repeat('b',32),repeat('c',128),'smoke_user','demo','{"cashMinor":10000000,"realizedMinor":0,"positions":[],"version":0}') returning id into aid;
- s := '{"cashMinor":8000000,"realizedMinor":0,"positions":[{"symbol":"9432.T","name":"Test","shares":200,"costMinor":2000000}],"version":1}';
- t := '{"requestId":"00000000-0000-4000-8000-000000000001","symbol":"9432.T","name":"Test","side":"buy","quantity":200,"priceMinor":10000,"totalMinor":2000000,"cashAfterMinor":8000000,"realizedMinor":0,"source":"demo","quoteAt":null,"executedAt":1800000000000}';
- foreach q in array array[1,99,101,150,199] loop
-  denied:=false;
-  begin perform public.practice_commit_trade(aid,0,s,jsonb_set(t,'{quantity}',to_jsonb(q)),repeat('d',64));
-  exception when check_violation then denied:=true; end;
-  if not denied then raise exception 'Non-lot quantity % accepted',q; end if;
- end loop;
- if (select (state->>'version')::integer from public.practice_accounts where id=aid)<>0 then raise exception 'Rejected orders mutated state'; end if;
- r:=public.practice_commit_trade(aid,0,s,t,repeat('d',64));
- if r->>'duplicate'<>'false' or r->'state'<>s then raise exception '200-share buy failed'; end if;
- r:=public.practice_commit_trade(aid,0,s,t,repeat('d',64));
- if r->>'duplicate'<>'true' then raise exception 'Idempotency failed'; end if;
- if (select count(*) from public.practice_trades where account_id=aid)<>1 then raise exception 'Duplicate ledger row'; end if;
- r:=public.practice_commit_trade(aid,0,s,t,repeat('e',64));
- if r->>'idempotencyConflict'<>'true' then raise exception 'Fingerprint conflict failed'; end if;
- t:=jsonb_set(t,'{requestId}','"00000000-0000-4000-8000-000000000002"');
- r:=public.practice_commit_trade(aid,0,s,t,repeat('e',64));
- if r->>'conflict'<>'true' then raise exception 'Version conflict failed'; end if;
- denied:=false;
- begin perform public.practice_commit_trade(aid,1,jsonb_set(s,'{version}','2'),t,repeat('e',64));
- exception when check_violation then denied:=true; end;
- if not denied then raise exception 'Forged state accepted'; end if;
- denied:=false;
- begin update public.practice_accounts set state=jsonb_set(state,'{cashMinor}','-1') where id=aid;
- exception when check_violation then denied:=true; end;
- if not denied then raise exception 'Negative cash accepted'; end if;
- denied:=false;
- begin update public.practice_accounts set state=jsonb_set(state,'{positions,0,shares}','99') where id=aid;
- exception when check_violation then denied:=true; end;
- if not denied then raise exception 'Odd-lot holding accepted'; end if;
- s:='{"cashMinor":9200000,"realizedMinor":200000,"positions":[{"symbol":"9432.T","name":"Test","shares":100,"costMinor":1000000}],"version":2}';
- t:=t||'{"side":"sell","quantity":100,"priceMinor":12000,"totalMinor":1200000,"cashAfterMinor":9200000,"realizedMinor":200000}'::jsonb;
- r:=public.practice_commit_trade(aid,1,s,t,repeat('e',64));
- if r->'state'<>s then raise exception 'Partial sale or cost basis failed'; end if;
- s:='{"cashMinor":10300000,"realizedMinor":300000,"positions":[],"version":3}';
- t:=t||'{"requestId":"00000000-0000-4000-8000-000000000003","priceMinor":11000,"totalMinor":1100000,"cashAfterMinor":10300000,"realizedMinor":100000}'::jsonb;
- r:=public.practice_commit_trade(aid,2,s,t,repeat('f',64));
- if r->'state'<>s then raise exception 'Full sale or realized profit failed'; end if;
- insert into public.practice_sessions(token_hash,account_id,expires_at) values(repeat('a',64),aid,now()+interval '1 day'),(repeat('b',64),aid,now()+interval '1 day');
+ if has_table_privilege('anon','public.practice_wallets','select') or has_table_privilege('authenticated','public.practice_asset_trades','select') or has_function_privilege('anon','public.practice_commit_asset_trade(uuid,bigint,jsonb,jsonb,text)','execute') then raise exception 'Public access';end if;
+ if public.practice_valid_asset_state('{}') or public.practice_valid_asset_state(null) then raise exception 'Malformed state';end if;
+ insert into public.practice_accounts(lookup,salt,password_hash,username,market,state) values(repeat(tag,2),repeat('a',32),repeat('b',128),'qa_'||left(tag,12),'multi','{"cashMinor":10000000,"realizedMinor":0,"positions":[],"version":0}') returning id into aid;
+ if (select state->>'cashMinor' from public.practice_wallets where account_id=aid)<>'10000000' then raise exception 'Wallet trigger';end if;
+ s:='{"cashMinor":9000000,"realizedMinor":0,"positions":[{"symbol":"BTC","name":"Bitcoin","type":"crypto","unit":"BTC","quantity":1000,"costMinor":1000000}],"version":1}';
+ t:=jsonb_build_object('requestId',gen_random_uuid(),'symbol','BTC','name','Bitcoin','type','crypto','unit','BTC','side','buy','quantity',1000,'quantityScale',1000000,'priceMinor',1000000000,'totalMinor',1000000,'cashAfterMinor',9000000,'realizedMinor',0,'source','coingecko','quoteAt',stamp,'quoteDate',null,'executedAt',stamp);
+ r:=public.practice_commit_asset_trade(aid,0,s,t,repeat('c',64));if r->'state'<>s then raise exception 'BTC buy';end if;
+ r:=public.practice_commit_asset_trade(aid,0,s,t,repeat('c',64));if r->>'duplicate'<>'true' then raise exception 'Duplicate';end if;
+ r:=public.practice_commit_asset_trade(aid,0,s,t,repeat('d',64));if r->>'idempotencyConflict'<>'true' then raise exception 'Fingerprint';end if;
+ t:=t||jsonb_build_object('requestId',gen_random_uuid());
+ r:=public.practice_commit_asset_trade(aid,0,s,t,repeat('c',64));if r->>'conflict'<>'true' then raise exception 'CAS';end if;
+ denied:=false;begin perform public.practice_commit_asset_trade(aid,1,s,t||'{"quantity":9}',repeat('c',64));exception when check_violation then denied:=true;end;if not denied then raise exception 'Step accepted';end if;
+ denied:=false;begin perform public.practice_commit_asset_trade(aid,1,s,t||'{"source":"frankfurter"}',repeat('c',64));exception when check_violation then denied:=true;end;if not denied then raise exception 'Wrong source';end if;
+ denied:=false;begin perform public.practice_commit_asset_trade(aid,1,s,t||jsonb_build_object('quoteAt',stamp-1800000),repeat('c',64));exception when check_violation then denied:=true;end;if not denied then raise exception 'Stale timestamp';end if;
+ s:='{"cashMinor":10100000,"realizedMinor":100000,"positions":[],"version":2}';
+ t:=t||jsonb_build_object('side','sell','priceMinor',1100000000,'totalMinor',1100000,'cashAfterMinor',10100000,'realizedMinor',100000);
+ r:=public.practice_commit_asset_trade(aid,1,s,t,repeat('c',64));if r->'state'<>s then raise exception 'BTC sell';end if;
+ s:='{"cashMinor":9950000,"realizedMinor":100000,"positions":[{"symbol":"USDJPY","name":"米ドル / 円","type":"fx","unit":"USD","quantity":10000000,"costMinor":150000}],"version":3}';
+ t:=jsonb_build_object('requestId',gen_random_uuid(),'symbol','USDJPY','name','米ドル / 円','type','fx','unit','USD','side','buy','quantity',10000000,'quantityScale',1000000,'priceMinor',15000,'totalMinor',150000,'cashAfterMinor',9950000,'realizedMinor',0,'source','frankfurter','quoteAt',null,'quoteDate',current_date::text,'executedAt',stamp);
+ r:=public.practice_commit_asset_trade(aid,2,s,t,repeat('c',64));if r->'state'<>s then raise exception 'FX buy';end if;
+ s:='{"cashMinor":10101000,"realizedMinor":101000,"positions":[],"version":4}';
+ t:=t||jsonb_build_object('requestId',gen_random_uuid(),'side','sell','priceMinor',15100,'totalMinor',151000,'cashAfterMinor',10101000,'realizedMinor',1000);
+ r:=public.practice_commit_asset_trade(aid,3,s,t,repeat('c',64));if r->'state'<>s then raise exception 'FX sell';end if;
+ insert into public.practice_trades(account_id,request_id,fingerprint,trade) values(aid,gen_random_uuid(),repeat('d',64),'{"symbol":"9434.T","quantity":100,"source":"yahoo"}');
+ r:=public.practice_asset_history(aid,0,50);if jsonb_array_length(r->'items')<>5 then raise exception 'History union';end if;
+ if not exists(select 1 from jsonb_array_elements(r->'items') x where x->>'legacy'='true') then raise exception 'Legacy flag';end if;
+ r:=public.practice_asset_history(aid,0,2);if r->>'hasMore'<>'true' or jsonb_array_length(r->'items')<>2 then raise exception 'Pagination';end if;
+ insert into public.practice_sessions(token_hash,account_id,expires_at) values(repeat(tag,2),aid,now()+interval '1 day');
  delete from public.practice_accounts where id=aid;
- if exists(select 1 from public.practice_sessions where account_id=aid) or exists(select 1 from public.practice_trades where account_id=aid) then raise exception 'Deletion cascade failed'; end if;
- if not public.practice_rate_limit(repeat(lookup_a,2),1,60000,0) then raise exception 'First rate bucket failed'; end if;
- if public.practice_rate_limit(repeat(lookup_a,2),1,60000,0) then raise exception 'Rate limit failed'; end if;
+ if exists(select 1 from public.practice_wallets where account_id=aid) or exists(select 1 from public.practice_asset_trades where account_id=aid) or exists(select 1 from public.practice_trades where account_id=aid) or exists(select 1 from public.practice_sessions where account_id=aid) then raise exception 'Cascade';end if;
+ r:=public.practice_claim_quotes('crypto');
+ if r->>'claimed'='true' then
+  token:=(r->>'token')::uuid;r:=public.practice_claim_quotes('crypto');if r->>'claimed'<>'false' then raise exception 'Double cache claim';end if;
+  if public.practice_save_quotes('crypto',gen_random_uuid(),'[1,2,3,4]',stamp) then raise exception 'Wrong lease accepted';end if;
+  perform public.practice_fail_quotes('crypto',token,'MARKET_RATE_LIMIT',600000);
+ end if;
 end $$;
 rollback;
+select 'PASS: wallet trigger, BTC/FX round trips, CAS, idempotency, invalid quotes, legacy history, pagination, deletion cascade and cache lease' as result;

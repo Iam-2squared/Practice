@@ -1,10 +1,12 @@
 {
   "name": "practice-paper-trading",
-  "version": "0.2.1",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "A small, cash-only Japanese stock practice app. No real orders.",
-  "engines": { "node": "22.x" },
+  "description": "Cash-only crypto and daily-rate FX paper trading. No real orders.",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
     "start": "node --env-file-if-exists=.env.local scripts/dev.mjs",

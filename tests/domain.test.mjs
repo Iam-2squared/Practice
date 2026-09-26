@@ -1,28 +1,12 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
-import { initialState, INITIAL_CASH, normalizeSymbol, executeTrade } from '../lib/domain.mjs';
-const quote={symbol:'7203.T',name:'テスト',priceMinor:10005,currency:'JPY',source:'demo',quoteAt:null};
-const order=(side='buy',quantity=300,extra={})=>({symbol:'7203.T',side,quantity,requestId:randomUUID(),...extra});
-test('starts at exactly 100,000 JPY',()=>assert.equal(initialState().cashMinor,10_000_000));
-test('normalizes Japanese full-width and alpha stock codes',()=>{assert.equal(normalizeSymbol('７２０３'),'7203.T');assert.equal(normalizeSymbol('130a'),'130A.T');});
-for(const symbol of ['AAPL','../api','7203.T/../../','0A00','72030','7203.US','^N225'])test(`rejects invalid symbol ${symbol}`,()=>assert.throws(()=>normalizeSymbol(symbol)));
-test('buy persists exact minor units without mutating original',()=>{const s=initialState();const r=executeTrade(s,order(),quote,100);assert.equal(r.state.cashMinor,INITIAL_CASH-3001500);assert.equal(r.state.positions[0].shares,300);assert.equal(s.positions.length,0);assert.equal(r.trade.totalMinor,3001500);});
-for(const quantity of [0,-100,1,99,101,150,199,1.5,NaN,Infinity,1_000_001,'100',null])test(`rejects quantity ${String(quantity)}`,()=>assert.throws(()=>executeTrade(initialState(),order('buy',quantity),quote,100)));
-test('rejects insufficient cash',()=>assert.throws(()=>executeTrade(initialState(),order('buy',1000),quote,1),e=>e.code==='INSUFFICIENT_CASH'));
-test('rejects naked short selling',()=>assert.throws(()=>executeTrade(initialState(),order('sell',100),quote,1),e=>e.code==='INSUFFICIENT_SHARES'));
-test('rejects overselling',()=>{const a=executeTrade(initialState(),order('buy',200),quote,1);assert.throws(()=>executeTrade(a.state,order('sell',300),quote,2));});
-test('weighted basis and residual allocation preserve all cost',()=>{
- let s=executeTrade(initialState(),order('buy',200),quote,1).state;
- s=executeTrade(s,order('buy',100),{...quote,priceMinor:10006},2).state;
- assert.equal(s.positions[0].costMinor,3001600);
- s=executeTrade(s,order('sell',100),{...quote,priceMinor:10100},3).state;
- assert.equal(s.positions[0].costMinor,2001067);
- s=executeTrade(s,order('sell',200),{...quote,priceMinor:10100},4).state;
- assert.equal(s.positions.length,0);assert.equal(s.realizedMinor,28400);assert.equal(s.cashMinor,INITIAL_CASH+28400);
-});
-for(const price of [0,-1,NaN,Infinity,1.1,Number.MAX_SAFE_INTEGER])test(`rejects invalid price ${price}`,()=>assert.throws(()=>executeTrade(initialState(),order(),{...quote,priceMinor:price},1)));
-test('rejects mismatched currency and symbol',()=>{assert.throws(()=>executeTrade(initialState(),order(),{...quote,currency:'USD'},1));assert.throws(()=>executeTrade(initialState(),order(),{...quote,symbol:'6758.T'},1));});
-test('sale can realize a loss',()=>{const a=executeTrade(initialState(),order(),quote,1);const r=executeTrade(a.state,order('sell'),{...quote,priceMinor:9000},2);assert.equal(r.state.realizedMinor,-301500);});
-
-test('one full lot is accepted and initial funds are unchanged',()=>{const r=executeTrade(initialState(),order('buy',100),quote,1);assert.equal(r.state.positions[0].shares,100);assert.equal(INITIAL_CASH,10000000);});
+import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {ASSETS} from '../lib/catalog.mjs';import {initialState,normalizeSymbol,validateOrder,validateState,executeTrade,amountMinor,MAX_QUANTITY,MAX_MONEY} from '../lib/domain.mjs';
+const quote=a=>({...a,currency:'JPY',priceMinor:a.type==='crypto'?({BTC:1000000000,ETH:40000000,SOL:2000000,XRP:25000}[a.symbol]):16000,quoteAt:Date.now()}),order=(a,quantity=a.stepUnits,side='buy')=>({symbol:a.symbol,quantity,side,requestId:randomUUID()});
+for(const a of ASSETS){test(`${a.symbol}: minimum, partial sale and full sale`,()=>{const q=quote(a),before=initialState();const b=executeTrade(before,order(a,a.stepUnits*3),q,0);assert.equal(before.positions.length,0);assert.equal(b.state.positions[0].quantity,a.stepUnits*3);const sold=executeTrade(b.state,order(a,a.stepUnits,'sell'),q,1);assert.equal(sold.state.positions[0].quantity,a.stepUnits*2);const end=executeTrade(sold.state,order(a,a.stepUnits*2,'sell'),q,2);assert.equal(end.state.positions.length,0);assert.ok(end.state.cashMinor<=before.cashMinor);assert.equal(end.state.cashMinor-before.cashMinor,end.state.realizedMinor);});}
+for(const q of [0,-1,1.01,NaN,Infinity,'1000',MAX_QUANTITY+1,9])test(`reject quantity ${String(q)}`,()=>assert.throws(()=>validateOrder(order(ASSETS[0],q)),e=>e.code==='QUANTITY'));
+for(const s of ['9434.T','7203','http://localhost',null,{},'BTCUSD'])test(`unsupported symbol ${String(s)}`,()=>assert.throws(()=>normalizeSymbol(s)));
+test('accept normalized FX code, forbid arbitrary symbols',()=>{assert.equal(normalizeSymbol('usd/jpy'),'USDJPY');assert.equal(normalizeSymbol('ｂｔｃ'),'BTC');});
+test('exact integer cost at products larger than 2^53',()=>{const p=999999999999,q=999999;assert.equal(amountMinor(p,q,'buy'),Number((BigInt(p)*BigInt(q)+999999n)/1000000n));assert.equal(amountMinor(p,q),Number(BigInt(p)*BigInt(q)/1000000n));assert.throws(()=>amountMinor(MAX_MONEY,MAX_QUANTITY));});
+test('fragmented round trips cannot create cash',()=>{for(let price=101;price<190;price++){const a=ASSETS[0],q={...quote(a),priceMinor:price};let s=initialState();s=executeTrade(s,order(a,1000000),q,1).state;for(let i=0;i<10;i++)s=executeTrade(s,order(a,100000,'sell'),q,2).state;assert.ok(s.cashMinor<=10000000);assert.equal(s.positions.length,0);}});
+test('overspend and oversell rejected',()=>{const a=ASSETS[0];assert.throws(()=>executeTrade(initialState(),order(a,1000000000),quote(a),0),e=>e.code==='INSUFFICIENT_CASH');assert.throws(()=>executeTrade(initialState(),order(a,1000,'sell'),quote(a),0),e=>e.code==='INSUFFICIENT_SHARES');});
+test('source and metadata cannot be changed',()=>{for(const change of [{source:'yahoo'},{unit:'USD'},{type:'fx'},{currency:'USD'}])assert.throws(()=>executeTrade(initialState(),order(ASSETS[0]),{...quote(ASSETS[0]),...change},0),e=>e.code==='QUOTE');});
+test('invalid states rejected and zero remaining basis allowed',()=>{for(const change of [{cashMinor:-1},{version:-1},{positions:[{symbol:'9432.T'}]},{realizedMinor:Infinity}])assert.throws(()=>validateState({...initialState(),...change}));const p={symbol:'BTC',name:'Bitcoin',type:'crypto',unit:'BTC',quantity:10,costMinor:0};validateState({...initialState(),positions:[p]});assert.throws(()=>validateState({...initialState(),positions:[p,p]}));});

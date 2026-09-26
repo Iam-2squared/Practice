@@ -1,46 +1,14 @@
-# Security / v0.2
+# Security
 
-## Authentication model
+Paper trading only. No deposits, payments, exchange credentials or real orders.
+Server-only Supabase key and separate derived quote-signing key; keys never shipped to the browser.
+The existing APP_SECRET is also the password lookup key; changing it without a credential migration locks out existing accounts. Keep it stable.
 
-This application deliberately implements a password-only **bearer-secret account**. There is no email, username, identity verification, or password recovery. Anyone who knows the password can access that practice account. Existing accounts cannot be claimed by registering a duplicate password. New users should use the cryptographically generated 256-bit secret instead of a memorable or reused password.
+Passwords are salted scrypt hashes. The requested six-character minimum is a convenience setting, not a recommendation for public security; use long random passwords. Password-only login means anyone who knows the password can access that account. No recovery by email is implemented.
+Sessions are random server-stored digests with HttpOnly/Secure/SameSite cookies. API writes require canonical origin and an application header. Rate limits are enforced in the database.
 
-Passwords are normalized with NFKC, constrained to 20–128 characters with at least 10 distinct characters, located with a server-secret HMAC, and verified with salted scrypt (`N=32768,r=8,p=3`). The lookup index is not a replacement for scrypt. Losing/changing `APP_SECRET` makes existing password lookups unavailable; preserve it securely. A password+username design would avoid the global-secret namespace but is intentionally outside the requested v1 UX.
+Wallets, ledgers, cache, accounts and sessions are server-only with RLS and revoked browser-role privileges. Trade RPC recomputes transitions under a row lock, verifies instrument/source, quantity, funds, quote date, idempotency and expected version.
 
-Random session tokens are stored only as SHA-256 hashes. Production cookies use `__Host-`, `Secure`, `HttpOnly`, `SameSite=Strict`, and a 30-day expiry. Logout revokes the server-side session. Account deletion requires password reauthentication and an explicit confirmation, then cascades atomically to the ledger and all sessions. Hosting backups/log retention are managed separately by the provider; deleting an application account is not a claim that provider backups disappear immediately. No password is stored in browser storage. A pending order payload can be kept in sessionStorage for exact-id retry; it cannot authorize access without the account's session.
+History is preserved on migration, erased only on user-confirmed account deletion (including all sessions). Leaderboard exposes username/total/rank/self only, never credentials or another user's positions.
 
-## Authority
-
-The client never supplies the execution price. A server HMAC binds the displayed quote to the account and a 60-second expiry. The server validates cash, shares, source, symbol, currency, 100-share lot quantities, and idempotency. A PostgreSQL account row lock + version check commits state and ledger together. SQL independently recomputes cash, holdings, proportional cost basis, and realized profit and rejects any disagreement with the proposed state. Table constraints also reject missing state fields and odd-lot holdings/trades. The memory adapter supplies equivalent serialized behavior for tests only.
-
-Every mutation requires the exact configured Origin, JSON, and a custom request header. The API does not enable CORS. The server requires authentication before querying market data. Persistent rate buckets cover login/registration and per-account requests. Vercel Firewall abuse limits and capacity review remain necessary before a broad public launch; rate limits are not a complete DDoS defense.
-
-## Database
-
-Use a NEW dedicated Practice project. All four tables enable RLS and revoke anon/authenticated access. RPC functions are SECURITY INVOKER, have an empty search_path, and revoke public execution. Only the server's secret/service-role key can access them. The app, not Supabase Auth, validates the user's session and ownership before privileged requests. This is why a server secret MUST NOT reach a browser, repository, screenshot, or chat.
-
-`sb_secret_` is sent only as `apikey`. Legacy service-role JWTs additionally use Authorization. These forms are different; never substitute an anon/publishable key for the server secret.
-
-## Operational boundaries
-
-- Local `.local/` persistence is single-process development only and refuses production/Vercel.
-- Database misconfiguration fails closed; production never silently uses an ephemeral memory account.
-- HTTP auth/session/trade responses are no-store. Scripts/styles are same-origin and no inline script is shipped.
-- Demo prices are explicitly synthetic. Yahoo has no assumed redistribution permission and is off by default.
-- Corporate actions, delistings, production backup retention, and secret rotation UX need a separate release decision.
-- No analytics, advertising tags, or brokerage connections are included. App logs do not include request bodies, passwords, cookies, or upstream raw errors. Hosting providers may maintain their own access logs.
-
-Do not put secrets in issues. Report a suspected vulnerability with a minimal redacted reproduction. This is a practice app, not a hardened financial-account system.
-
-## Provisioned database audit
-
-Dedicated project: `mitowlxrsrhbtmehiyvh` (Practice, Tokyo). Migration `practice_v02_cash_lots` was applied and service-role SQL smoke tests passed, with all fixtures rolled back. Advisor results: no ERROR/WARN; four INFO `rls_enabled_no_policy` findings are intentional: direct browser table access is denied, while only the server role can execute the API contracts. Do not add broad public policies merely to silence this informational finding.
-
-[Advisor explanation](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
-
-## v0.2.1 quote-key separation and setup corrections
-
-A setup helper previously provided an APP_SECRET in chat. A shared/chat-supplied value is not a suitable long-term secret. Do not commit or repeat that value. The release separates price-signature security from the account lookup key by deriving a server-only quote key with HMAC-SHA256 keyed by the private Supabase server key and including APP_SECRET and a domain separator. Knowing APP_SECRET alone no longer permits forging a price token. Neither input nor the derived key is exposed by configuration diagnostics.
-
-The account lookup HMAC remains unchanged to preserve existing password-only accounts. **Do not rotate APP_SECRET blindly**: safe credential migration must be designed first. The new separation addresses quote forgery; it is not a claim that the old APP_SECRET has been securely rotated. No secret value was read from the user's Vercel project during this work.
-
-Secrets in the Vercel dashboard cannot be read back simply by opening Edit. Treat missing configuration evidence separately from hidden secret UI. Setup diagnostics return a strict allowlist of variable names only, never lengths, hashes or partial secret values.
+No source-code visibility setting makes a deployed URL private. Vercel access protection is separate. Do not share old passwords/keys in screenshots or commit logs. Report issues privately to the repository owner.

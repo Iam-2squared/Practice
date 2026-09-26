@@ -1,0 +1,10 @@
+import { createMarket } from '../lib/market.mjs';
+import { MemoryStore } from '../lib/store.mjs';
+import { createApp } from '../lib/app.mjs';
+import { randomUUID } from 'node:crypto';
+export const origin='http://localhost:3000',secret='fixture-secret-not-for-production-'.repeat(3);
+export function payload(url,time){return url.includes('coingecko')?Object.fromEntries([['bitcoin',10000000],['ethereum',400000],['solana',20000],['ripple',250]].map(([id,jpy])=>[id,{jpy,last_updated_at:Math.floor(time/1000)}])):{base:'EUR',amount:1,date:new Date(time).toISOString().slice(0,10),rates:{JPY:160,USD:1.1,GBP:0.85,AUD:1.6}};}
+export function setup({store=new MemoryStore(),fetcher=null,key='fixture-api-key',time=Date.now()}={}){let now=time;const market=createMarket({store,clock:()=>now,coinGeckoKey:key,fetcher:fetcher|| (async url=>Response.json(payload(url,now)))});const app=createApp({store,market,secret,quoteSecret:'separate-private-fixture-signing-key',origin,secure:false,clock:()=>now});return{store,market,app,clock:()=>now,advance:n=>now+=n,client:()=>client(app)};}
+export function client(app){let cookie='';return{get cookie(){return cookie;},async call(action,body,params={},headers={}){const r=await app(new Request(`${origin}/api/index?${new URLSearchParams({action,...params})}`,{method:body===undefined?'GET':'POST',headers:{cookie,origin,'content-type':'application/json','x-practice-request':'1',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}));if(r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];return{status:r.status,headers:r.headers,...await r.json()};}};}
+export async function register(c,name='test_'+randomUUID().slice(0,8),password='local-fixture-'+randomUUID()){const r=await c.call('register',{username:name,password});if(r.status!==200)throw Error(JSON.stringify(r));return{account:r.account,password};}
+export async function order(c,extra={}){const symbol=extra.symbol||'BTC';const r=await c.call('quote',undefined,{symbol});if(r.status!==200)throw Error(JSON.stringify(r));return{symbol,side:'buy',quantity:1000,requestId:randomUUID(),quoteToken:r.quoteToken,...extra};}

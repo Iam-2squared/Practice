@@ -1,88 +1,47 @@
-# practice.
+# Practice 0.4 — Crypto / FX
 
-**10万円からはじめる、日本株の仮想売買。**
+10万円からの仮想売買。実際の暗号資産・外貨の注文や入出金はありません。
 
-スマホ中心の、現物取引だけの小さな練習アプリです。実際の注文・入出金・証券口座連携はありません。
+**資産 / 仮想通貨 / FX / ランキング / 履歴・アカウント** の5タブ。
+資産画面はサマリーと最近の売買記録だけ。保有銘柄一覧・チャート・お気に入りはありません。
+保有数量は内部で保存し、各銘柄の売る画面で確認できます。現物のみ、信用・空売り・レバレッジなし。
 
-## できること
+## 市場
 
-- 初期資金 **100,000円**、**100株単位**。信用取引・空売り・借入なし。
-- 下部3タブ：**資産**（現金・持ち株・評価額・損益）、**取引**（銘柄検索・購入・売却）、**履歴・アカウント**。
-- 持ち株を押して直接売買。確認画面を経由し、残高・保有数をサーバーで検証。
-- メール登録なし、**専用パスワードのみ**で口座作成・再ログイン。
-- 注文番号による二重売買防止、同時注文の残高保護、株価の改ざん防止。
-- 本人確認のパスワードと明示確認による口座削除。全端末のセッションと履歴も削除。
-- 株数は100／200／300…のみ。買付可能数は100株単位で切り下げ、1単元の必要金額も表示。
+- 仮想通貨: BTC / ETH / SOL / XRP、円建て、CoinGecko Demo。サーバーの無料APIキーが必要です。
+- FX: USD/JPY / EUR/JPY / GBP/JPY / AUD/JPY、Frankfurter v1の日次参考レート。リアルタイムFXではありません。
+- データの日時と出典リンクを表示。価格不明・古い価格は約定しません。合成価格への切替なし。
+- 4通貨を一度に取得、Supabaseで全インスタンス共有キャッシュ。Cryptoは5分、FXは4時間。同時取得をロック。
+- 無料枠や利用許諾を保証するものではありません。CoinGecko契約上の用途・割当量は利用者が確認してください。
 
-## 現在の状態
+## 口座と記録
 
-**v0.2: 100株単位・モノトーン＋ブルー・スマホUIの実装とローカル検証済み。専用DB構築済み。本番公開・接続は未完了。**
+ユーザーネーム、6〜128文字のパスワード。ログインはパスワードだけ。長いランダムなパスワードを推奨。
+口座削除には本人確認と明示確認が必要です。旧・新ウォレット、履歴、セッションは連鎖削除され、ランキングから消えます。
 
-標準設定は **DEMO（架空の固定価格）** です。実際の株価ではありません。
-Yahooアダプターは実装しましたが、実データ取得は未検証です。公開利用・再配信の許可を確認するまでは有効にしません。
+旧日本株口座のID・名前・認証情報・元の状態・売買履歴は変更しません。
+新しいCrypto/FXウォレットを各口座に10万円で一度だけ追加します。
+旧履歴は「旧市場の保存記録」として閲覧でき、現在のランキングや残高には混ぜません。
+旧銘柄の検索・価格取得・新規注文は実装から削除しました。
 
-専用Supabase「Practice」（東京）は作成・スキーマ適用・実DBスモークテスト済みです。Vercel接続がチーム0件／デプロイ機能エラーのため、本番環境変数の設定と公開URLの発行が残っています。最新の保存時刻、検証結果、次の手順は [docs/STATUS.md](docs/STATUS.md) を参照してください。
-
-## ローカルで動かす
-
-Node.js 22 が必要です。外部npm依存はありません。
+## 実行・検証
 
 ```sh
-npm ci
+npm ci --ignore-scripts
 npm test
+npm run check
+npm run build
 npm run dev
 ```
 
-`http://localhost:3000` を開きます。初回起動時に `.local/` へ開発専用の保存ファイル・秘密鍵を作ります。**このフォルダーはGitに入れないでください。** 同一開発サーバーでは再起動後も口座を保持します。複数プロセス・本番用の保存先ではありません。
+開発用のデータは `.local-crypto-fx/`。本番はSupabase専用。
+新DBは `db/bootstrap.sql` → `db/crypto_fx.sql`。既存DBは追加移行 `db/crypto_fx.sql` だけ。
+`db/smoke.sql` はサービスロールで検証し全fixtureをROLLBACKします。
+本番移行は既存の口座や履歴を削除・リセットしません。
 
-パスワードは20〜128文字、異なる文字10種類以上。画面の **安全なパスワードを自動生成** を推奨します。忘れた場合の復旧はありません。他サービスのパスワードを流用しないでください。
+UIテストは `node tests/ui-server.mjs` と `python tests/browser_smoke.py`。
+通常はHTTP/Cookie付きの実APIを、外部価格だけ合成fixtureで検証します。
+`PRACTICE_UI_ISOLATED=1` はネットワーク接続をしない純粋な表示テストで、HTTP・本番E2Eとは別です。
 
-```sh
-npm run check   # JavaScript構文チェック
-npm test        # ドメイン・認証・API・同時注文・株価のテスト
-npm run build   # dist/ へ静的クライアントを生成
-```
-
-## スマホ検証
-
-幅320 / 360 / 375 / 390 / 430px、768px、横向き844×390、PC1280pxで3タブと売買ダイアログを確認しました。ナビゲーションは44px以上のタップ領域、売買画面は小画面で下から開くシートです。ブラウザー検証の環境・限界は `docs/STATUS.md` を参照してください。iOS Safari実機や公開URLでの検証済みという意味ではありません。
-
-初期10万円・100株単位の場合、1株1,000円を超える銘柄は初期資金では購入できません。資金や株価を自動調整して注文を成立させることはありません。旧v0.1のローカル端株データは自動売却・リセットしません。新規口座で100株ルールの練習を始めてください。
-
-## 構成
-
-今回の小ささを優先し、Next.jsではなく **HTML/CSS/JavaScript + Node.js Web API** を採用しました。Vercel Functionsが `api/index.js` を、Vercelが `dist/` を配信する構成です。
-
-| 場所 | 内容 |
-|---|---|
-| `public/` | 3タブのスマホ向け画面 |
-| `lib/domain.mjs` | 現物売買・整数金額・取得原価・損益 |
-| `lib/security.mjs` | scrypt / HMAC / セッション / CSRF |
-| `lib/app.mjs` | 認証・検索・売買のHTTP API |
-| `lib/store.mjs` | ローカル／Supabase REST保存アダプター |
-| `lib/market.mjs` | DEMO／Yahoo価格アダプター |
-| `db/` | 専用DBの定義・権限確認・SQLスモークテスト |
-| `docs/DEPLOY.md` | 本番接続・公開手順 |
-
-## 練習モードの割り切り
-
-参照価格で即時に仮想成立します。実際の板・約定順・流動性・受渡・手数料・税金・株式分割・配当は再現しません。営業時間外も、期限内の参照価格があれば仮想売買できます。長期間保有した場合の損益は、実際の投資成績を再現しません。
-
-価格を取得できない保有銘柄があるときは、資産合計を **未算出** にします。取得原価や0円を現在値として代用しません。DEMOとYahooの口座は混在できません。
-
-## セキュリティ・データ利用
-
-パスワードの平文保存、ブラウザーへのDB秘密鍵配布は行いません。サーバーが口座単位のアクセス制御を行い、DBはRLS有効・匿名アクセス不可です。詳しくは [SECURITY.md](SECURITY.md)。
-
-Yahooの利用許可はライブラリやアプリの実装だけでは得られません。参考：
-- [yfinanceのデータ利用に関する注意](https://github.com/ranaroussi/yfinance#download-market-data-from-yahoo-finances-api)
-- [Yahoo Terms](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html)
-- [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)
-- [Supabase API security](https://supabase.com/docs/guides/api/securing-your-api)
-- [Vercel Node.js Functions](https://vercel.com/docs/functions/runtimes/node-js)
-
-本アプリはYahoo・証券会社・取引所の公式サービスではありません。投資助言や実際の投資成果の保証は行いません。
-
-### v0.2.1 update
-
-Setup normalization and safe diagnostics, canonical-origin guidance, private quote-signing key separation, preserved demo accounts across future provider changes, and hardened Yahoo response handling are implemented. Yahoo **public distribution has not been approved or enabled by this update**. `docs/MARKET_DATA.md` records verified provider conditions and the remaining activation gate.
+本番設定は `.env.example` と `docs/DEPLOY.md`、価格の条件は `docs/MARKET_DATA.md`。
+秘密鍵・パスワード・CookieをGitに保存しないでください。

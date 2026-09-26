@@ -1,204 +1,95 @@
-"""UI verification. Start `npm run dev` first; install Playwright 1.57.0.
-
-PRACTICE_BROWSER_HTTP=1 uses the real HTTP page, browser cookies and CSP (CI).
-The default isolated renderer/API bridge supports managed authoring environments
-where direct localhost navigation is blocked, without changing browser policy.
-Neither mode substitutes for public Vercel HTTPS/Supabase end-to-end verification.
+"""Default: real localhost HTTP + API fixture server (CI).
+PRACTICE_UI_ISOLATED=1: pure in-memory API mocks, NO network bridge; rendering only.
+The isolated mode is not an HTTP/Cookie/Supabase/live-provider E2E test.
 """
-import base64
-import json
-import os
-import shutil
+import os, json, base64, uuid
 from pathlib import Path
-import urllib.request
-import urllib.error
-import uuid
 from playwright.sync_api import sync_playwright, expect
-
-ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'test-results'
-OUT.mkdir(exist_ok=True)
-html = (ROOT/'public/index.html').read_text().replace('<script type="module" src="/app.js"></script>', '').replace('<link rel="stylesheet" href="/style.css">', '')
-html = html.replace('src="/icon.svg"', 'src="data:image/svg+xml;base64,'+base64.b64encode((ROOT/'public/icon.svg').read_bytes()).decode()+'"')
-cookie = ''
-DIRECT_HTTP = os.environ.get('PRACTICE_BROWSER_HTTP') == '1'
-
-def transport(source, path, options):
-    global cookie
-    headers = {'Origin':'http://localhost:3000','Cookie':cookie,**options.get('headers',{})}
-    request = urllib.request.Request('http://localhost:3000'+path, data=options.get('body','').encode() if options.get('method')=='POST' else None, headers=headers, method=options.get('method','GET'))
-    try:
-        response = urllib.request.urlopen(request, timeout=30)
-    except urllib.error.HTTPError as error:
-        response = error
-    if response.headers.get('Set-Cookie'):
-        cookie = response.headers.get('Set-Cookie').split(';')[0]
-    return {'status':response.status,'body':response.read().decode()}
-
+ROOT=Path(__file__).resolve().parents[1]
+OUT=ROOT/'test-results';OUT.mkdir(exist_ok=True)
+isolated=os.getenv('PRACTICE_UI_ISOLATED')=='1'
 with sync_playwright() as p:
-    browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH') or shutil.which('chromium') or p.chromium.executable_path, headless=True, args=['--no-sandbox'])
-    page = browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1)
-    errors = []
-    page.on('pageerror', lambda error: errors.append(str(error)))
-    if DIRECT_HTTP:
-        response = page.goto('http://localhost:3000', wait_until='networkidle')
-        assert response.status == 200
-        assert "script-src 'self'" in response.headers.get('content-security-policy', '')
-    else:
-        page.goto('about:blank')
+    browser=p.chromium.launch(executable_path=os.getenv('CHROMIUM_PATH') or '/usr/bin/chromium' if isolated else None, headless=True, args=['--no-sandbox'])
+    page=browser.new_page(viewport={'width':390,'height':844})
+    errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+    if isolated:
+        html=(ROOT/'public/index.html').read_text().replace('<script type="module" src="/app.js"></script>','').replace('<link rel="stylesheet" href="/style.css">','').replace('<link rel="manifest" href="/manifest.json">','')
+        html=html.replace('src="/icon.svg"','src="data:image/svg+xml;base64,'+base64.b64encode((ROOT/'public/icon.svg').read_bytes()).decode()+'"')
         page.set_content(html)
         page.add_style_tag(content=(ROOT/'public/style.css').read_text())
-        page.expose_binding('localApi', transport)
-        page.evaluate('''() => {
-          window.fetch=async(path,options={})=>{const r=await window.localApi(path,options);return new Response(r.body,{status:r.status,headers:{'Content-Type':'application/json'}});};
-          if(!crypto.randomUUID)crypto.randomUUID=()=> '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
-        }''')
+        page.add_script_tag(content=(ROOT/'tests/ui-mock.js').read_text())
         page.add_script_tag(content=(ROOT/'public/app.js').read_text(),type='module')
+    else:
+        r=page.goto('http://localhost:3000',wait_until='networkidle');assert r.status==200
+        assert "script-src 'self'" in r.headers['content-security-policy']
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
-    assert page.locator('nav button').count()==4
-    page.screenshot(path=str(OUT/'welcome-mobile.png'))
-    page.get_by_role('button',name='練習をはじめる',exact=True).click()
-    password='BrowserTest_Only_'+str(uuid.uuid4())
-    page.locator('[name=username]').fill('browser_'+uuid.uuid4().hex[:8])
+    assert page.locator('nav button').count()==5
+    assert page.locator('nav button').all_text_contents()==['資産','仮想通貨','FX','ランキング','履歴・口座']
+    page.get_by_role('button',name='口座を作る',exact=True).click()
+    username='ui_'+uuid.uuid4().hex[:10]
+    password='Ui7!qZ' # Ephemeral local test fixture only.
+    page.locator('[name=username]').fill(username)
     page.locator('#password').fill(password)
     page.locator('[name=confirmation]').fill(password)
     page.locator('[name=saved]').check()
-    page.get_by_role('button',name='10万円で練習をはじめる').click()
-    page.wait_for_timeout(500)
-    if page.locator('#dialog').is_visible():
-        raise AssertionError('registration dialog remained open: '+page.locator('#form-error').inner_text())
-    expect(page.locator('#dialog')).not_to_be_visible()
-    expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
-    if DIRECT_HTTP:
-        session = next(c for c in page.context.cookies() if c['name'] == 'practice_session')
-        assert session['httpOnly'] and session['sameSite'] == 'Strict'
+    page.locator('#auth-form [type=submit]').click()
+    expect(page.locator('#dialog')).not_to_be_visible(timeout=10000)
+    if not isolated:
+        cookies=page.context.cookies();session=next(c for c in cookies if c['name']=='practice_session')
+        assert session['httpOnly'] and session['sameSite']=='Strict'
         assert 'practice_session' not in page.evaluate('document.cookie')
-        page.reload(wait_until='networkidle')
-        expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
-
-    page.locator('[data-tab=trade]').click()
-    expect(page.get_by_role('heading',name='銘柄を探す',exact=True)).to_be_visible()
-    page.locator('#search').fill('NTT')
-    expect(page.locator('[data-symbol="9432.T"]')).to_be_visible()
-    page.locator('[data-symbol="9432.T"]').click()
-    expect(page.locator('#quantity')).to_be_visible()
-    expect(page.locator('#quantity')).to_have_value('100')
-    page.locator('#quantity').fill('100000')
-    expect(page.locator('#order-next')).to_be_disabled()
-    expect(page.locator('#trade-error')).to_contain_text('買付余力が不足')
-    for quantity in ['1','99','101','150','199']:
-        page.locator('#quantity').fill(quantity)
-        expect(page.locator('#order-next')).to_be_disabled()
-        expect(page.locator('#trade-error')).to_contain_text('100株単位')
-    page.locator('[data-quantity=max]').click()
-    expect(page.locator('#quantity')).to_have_value('600')
-    page.locator('[data-quantity="200"]').click()
-    expect(page.locator('#quantity')).to_have_value('200')
-    page.locator('[data-step="100"]').click()
-    expect(page.locator('#quantity')).to_have_value('300')
-    page.locator('[data-step="-100"]').click()
-    expect(page.locator('#quantity')).to_have_value('200')
-    page.locator('#quantity').fill('300')
-    page.screenshot(path=str(OUT/'trade-mobile.png'))
-    page.get_by_role('button',name='購入内容を確認').click()
+    page.locator('[data-tab=crypto]').click()
+    expect(page.locator('[data-symbol=BTC]')).to_be_visible()
+    assert page.locator('[data-symbol=USDJPY]').count()==0
+    page.locator('[data-symbol=BTC]').click()
+    expect(page.locator('#quantity')).to_have_value('0.001')
+    for invalid in ['-1','0.0000001','0.000001','1000000']:
+        page.locator('#quantity').fill(invalid);expect(page.locator('#order-next')).to_be_disabled()
+    page.locator('#quantity').fill('0.001')
+    page.get_by_role('button',name='購入内容を確認',exact=True).click()
     page.get_by_role('button',name='仮想購入する',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
     page.locator('[data-tab=assets]').click()
-    expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('300株')
-    # Holdings -> sell, no separate search required.
-    page.locator('[data-symbol="9432.T"]').click()
-    expect(page.locator('[data-side-toggle=sell]')).to_have_attribute('aria-pressed','true')
-    page.locator('#quantity').fill('400')
-    expect(page.locator('#order-next')).to_be_disabled()
-    page.locator('#quantity').fill('100')
-    page.get_by_role('button',name='売却内容を確認').click()
-    page.get_by_role('button',name='仮想売却する',exact=True).click()
-    expect(page.locator('#dialog')).not_to_be_visible()
-    expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('200株')
-    page.evaluate('window.scrollTo(0,0)')
-    expect(page.locator('#toast')).not_to_have_class('visible',timeout=6000)
-    page.screenshot(path=str(OUT/'assets-mobile.png'))
-    page.locator('[data-tab=history]').click()
-    expect(page.locator('.history-row')).to_have_count(2)
-    page.evaluate('window.scrollTo(0,0)')
-    page.screenshot(path=str(OUT/'history-mobile.png'))
-    page.locator('[data-filter=sell]').click()
     expect(page.locator('.history-row')).to_have_count(1)
-    page.locator('[data-action=account]').click()
-    page.get_by_role('button',name='ログアウト',exact=True).click()
+    assert page.locator('#main .stock-row').count()==0
+    page.screenshot(path=str(OUT/'assets-crypto-fx.png'))
+    page.locator('[data-tab=crypto]').click();page.locator('[data-symbol=BTC]').click()
+    page.locator('[data-side=sell]').click();page.locator('#quantity').fill('0.001')
+    page.get_by_role('button',name='売却内容を確認',exact=True).click();page.get_by_role('button',name='仮想売却する',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
-    page.locator('[data-action=account]').click()
-    page.locator('#password').fill(password)
-    page.locator('#auth-form [type=submit]').click()
+    page.locator('[data-tab=fx]').click();expect(page.locator('[data-symbol=USDJPY]')).to_be_visible()
+    assert page.locator('[data-symbol=BTC]').count()==0
+    page.locator('[data-symbol=USDJPY]').click()
+    expect(page.locator('.quote-meta')).to_contain_text('日次参考レート')
+    page.locator('#quantity').fill('0.5');expect(page.locator('#order-next')).to_be_disabled()
+    page.locator('#quantity').fill('10');page.get_by_role('button',name='購入内容を確認',exact=True).click();page.get_by_role('button',name='仮想購入する',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
-    page.locator('[data-tab=assets]').click()
-    expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('200株')
-    if DIRECT_HTTP:
-        page.reload(wait_until='networkidle')
-        expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('200株')
-    page.set_viewport_size({'width':1280,'height':900})
-    page.screenshot(path=str(OUT/'assets-desktop.png'))
-    page.set_viewport_size({'width':360,'height':800})
-    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
-    page.screenshot(path=str(OUT/'assets-small-mobile.png'))
-    responsive = []
-    for width, height in [(320,740),(360,800),(375,812),(390,844),(430,932),(768,1024),(844,390),(1280,900)]:
-        page.set_viewport_size({'width':width,'height':height})
-        for tab in ['assets','trade','history']:
-            page.locator(f'[data-tab={tab}]').click()
-            assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), (width,tab)
-            targets=page.locator('.bottom-nav button').evaluate_all('(buttons)=>buttons.map(b=>b.getBoundingClientRect().height)')
-            assert min(targets)>=44,(width,targets)
-        page.locator('[data-tab=assets]').click()
-        page.locator('[data-symbol="9432.T"]').click()
-        expect(page.locator('#quantity')).to_be_visible()
-        assert page.locator('#dialog').evaluate('(d)=>d.scrollWidth<=d.clientWidth'),width
-        page.locator('[data-action=close]').click()
-        responsive.append({'width':width,'height':height,'tabs':3,'dialog':'PASS','horizontal_overflow':False})
-    page.set_viewport_size({'width':390,'height':844})
-    page.locator('[data-tab=trade]').click()
-    page.locator('#search').fill('トヨタ')
-    expect(page.locator('[data-symbol="7203.T"]')).to_be_visible()
-    page.locator('[data-symbol="7203.T"]').click()
-    expect(page.locator('#quantity')).to_have_value('100')
-    expect(page.locator('#order-next')).to_be_disabled()
-    expect(page.locator('#trade-error')).to_contain_text('1単元（100株）')
+    page.locator('[data-tab=history]').click();expect(page.locator('.history-row')).to_have_count(3)
+    page.locator('[data-action=account]').click();newname='edited_'+uuid.uuid4().hex[:8]
+    page.locator('#username-form [name=username]').fill(newname);page.locator('#username-form [type=submit]').click()
+    expect(page.locator('#dialog')).not_to_be_visible()
+    page.locator('[data-tab=ranking]').click();expect(page.locator('.rank-row.me')).to_contain_text(newname)
+    page.screenshot(path=str(OUT/'ranking-crypto-fx.png'))
+    for width in [320,360,390,430,768,1280]:
+        page.set_viewport_size({'width':width,'height':844})
+        for tab in ['assets','crypto','fx','ranking','history']:
+            page.locator('[data-tab='+tab+']').click();page.wait_for_timeout(50)
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), (width,tab)
+            for box in page.locator('nav button').all(): assert box.bounding_box()['height']>=44
+    page.set_viewport_size({'width':390,'height':844});page.locator('[data-tab=fx]').click();page.locator('[data-symbol=USDJPY]').click()
+    expect(page.locator('.quote-meta')).to_contain_text('日次参考レート')
+    page.screenshot(path=str(OUT/'fx-sheet.png'))
     page.locator('[data-action=close]').click()
-    if DIRECT_HTTP:
-        # UI contract: changing the site's default provider must not relabel an old demo account.
-        config = {'provider':'yahoo','marketStatus':'enabled','accountsAvailable':True,'storage':'local','initialCashMinor':10000000,'lotSize':100,'version':'0.2.1','publicOrigin':'http://localhost:3000'}
-        page.route('**/api/index?action=config', lambda route: route.fulfill(json=config))
-        page.reload(wait_until='networkidle')
-        expect(page.locator('#environment')).to_contain_text('DEMO')
-        page.unroute('**/api/index?action=config')
-    page.locator('[data-tab=history]').click()
-    page.locator('[data-action=account]').click()
-    page.locator('[data-action=delete-account]').click()
-    page.locator('#delete-form [name=password]').fill(password)
-    page.locator('#delete-form [type=checkbox]').check()
-    page.locator('#delete-form [type=submit]').click()
+    page.locator('[data-tab=history]').click();page.locator('[data-action=account]').click();page.get_by_role('button',name='ログアウト',exact=True).click()
     expect(page.locator('#dialog')).not_to_be_visible()
-    expect(page.get_by_role('heading',name='10万円から、気軽にはじめよう。')).to_be_visible()
-    if DIRECT_HTTP:
-        assert not any(c['name'] == 'practice_session' for c in page.context.cookies())
-    if DIRECT_HTTP:
-        # This is a mock config-response UI contract check, not a live provider test.
-        config = {'provider':'demo','marketStatus':'demo','accountsAvailable':True,'storage':'local','initialCashMinor':10000000,'lotSize':100,'version':'0.2.1','publicOrigin':'https://practice.example'}
-        page.route('**/api/index?action=config', lambda route: route.fulfill(json=config))
-        page.reload(wait_until='networkidle')
-        page.get_by_role('button',name='練習をはじめる',exact=True).click()
-        expect(page.locator('#auth-form [type=submit]')).to_be_disabled()
-        expect(page.locator('#dialog').get_by_role('link', name='本番サイトを開く')).to_have_attribute('href','https://practice.example')
-        page.locator('[data-action=close]').click()
-        config['publicOrigin']='http://localhost:3000'
-        config['provider']='yahoo'
-        config['marketStatus']='permission-required'
-        page.reload(wait_until='networkidle')
-        page.get_by_role('button',name='練習をはじめる',exact=True).click()
-        expect(page.locator('#auth-form [type=submit]')).to_be_disabled()
-        expect(page.locator('#dialog')).to_contain_text('利用許諾が未確認')
-        page.unroute('**/api/index?action=config')
+    page.get_by_role('button',name='すでに口座がある方はログイン').click()
+    page.locator('#password').fill(password);page.locator('#auth-form [type=submit]').click();expect(page.locator('#dialog')).not_to_be_visible()
+    page.locator('[data-tab=history]').click();expect(page.locator('.history-row')).to_have_count(3)
+    page.locator('[data-action=account]').click();page.locator('[data-action=delete-account]').click()
+    page.locator('#delete-form [name=password]').fill(password);page.locator('#delete-form input[type=checkbox]').check();page.locator('#delete-form [type=submit]').click()
+    expect(page.locator('#dialog')).not_to_be_visible()
+    expect(page.get_by_role('button',name='口座を作る',exact=True)).to_be_visible()
     assert not errors, errors
-    (OUT/'browser-result.json').write_text(json.dumps({'result':'PASS','transport':('direct browser HTTP with native cookies and CSP' if DIRECT_HTTP else 'isolated renderer + local HTTP API bridge'),'checks':['3-tab layout','password-only registration','search','insufficient balance','100-share increments and presets','non-lot inputs rejected','buyable lots floored to 100','buy confirmation','holding-to-sell','oversell rejected','history','history filter','logout','relogin persistence','360px no overflow','1280px desktop','account deletion with reauthentication','minimum 44px nav targets','no uncaught JS errors'],'responsive':responsive,'lot_size':100,'uncaught_js_errors':errors},ensure_ascii=False,indent=2))
-    print('PASS:', 'direct HTTP/native cookies/CSP' if DIRECT_HTTP else 'isolated renderer/API bridge', '| UI purchase/sale/history/auth, 8 viewports; no uncaught JS errors.')
+    result={'result':'PASS','mode':'isolated-renderer-with-mock-api' if isolated else 'HTTP-real-API-fixtures','viewports':[320,360,390,430,768,1280],'tabs':5,'holdingsList':False,'uncaughtErrors':errors}
+    (OUT/'browser-result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
     browser.close()
