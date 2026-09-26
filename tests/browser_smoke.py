@@ -64,6 +64,9 @@ with sync_playwright() as p:
     page.locator('[name=confirmation]').fill(password)
     page.locator('[name=saved]').check()
     page.get_by_role('button',name='10万円で練習をはじめる').click()
+    page.wait_for_timeout(500)
+    if page.locator('#dialog').is_visible():
+        raise AssertionError('registration dialog remained open: '+page.locator('#form-error').inner_text())
     expect(page.locator('#dialog')).not_to_be_visible()
     expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
     if DIRECT_HTTP:
