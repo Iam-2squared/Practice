@@ -9,8 +9,8 @@ begin
     or has_table_privilege('authenticated','public.practice_accounts','update')
     or has_function_privilege('anon','public.practice_commit_trade(uuid,bigint,jsonb,jsonb,text)','execute') then raise exception 'Public exposure'; end if;
  if public.practice_valid_state('{}') or public.practice_valid_state(null) then raise exception 'Missing state fields accepted'; end if;
- insert into public.practice_accounts(lookup,salt,password_hash,market,state)
- values(repeat(lookup_a,2),repeat('b',32),repeat('c',128),'demo','{"cashMinor":10000000,"realizedMinor":0,"positions":[],"version":0}') returning id into aid;
+ insert into public.practice_accounts(lookup,salt,password_hash,username,market,state)
+ values(repeat(lookup_a,2),repeat('b',32),repeat('c',128),'smoke_user','demo','{"cashMinor":10000000,"realizedMinor":0,"positions":[],"version":0}') returning id into aid;
  s := '{"cashMinor":8000000,"realizedMinor":0,"positions":[{"symbol":"9432.T","name":"Test","shares":200,"costMinor":2000000}],"version":1}';
  t := '{"requestId":"00000000-0000-4000-8000-000000000001","symbol":"9432.T","name":"Test","side":"buy","quantity":200,"priceMinor":10000,"totalMinor":2000000,"cashAfterMinor":8000000,"realizedMinor":0,"source":"demo","quoteAt":null,"executedAt":1800000000000}';
  foreach q in array array[1,99,101,150,199] loop
