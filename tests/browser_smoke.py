@@ -1,10 +1,9 @@
-"""Optional UI verification (pip install playwright). Start `npm run dev` first.
+"""UI verification. Start `npm run dev` first; install Playwright 1.57.0.
 
-The managed browser in the authoring environment blocks direct localhost navigation.
-This harness renders the actual static files and bridges fetch to the actual local
-HTTP API with an isolated cookie jar. It tests UI + application behavior, NOT
-Vercel deployment routing, browser cookie enforcement, or CSP enforcement.
-No browser security policy is changed. Production URL smoke tests remain required.
+PRACTICE_BROWSER_HTTP=1 uses the real HTTP page, browser cookies and CSP (CI).
+The default isolated renderer/API bridge supports managed authoring environments
+where direct localhost navigation is blocked, without changing browser policy.
+Neither mode substitutes for public Vercel HTTPS/Supabase end-to-end verification.
 """
 import base64
 import json
@@ -22,6 +21,7 @@ OUT.mkdir(exist_ok=True)
 html = (ROOT/'public/index.html').read_text().replace('<script type="module" src="/app.js"></script>', '').replace('<link rel="stylesheet" href="/style.css">', '')
 html = html.replace('src="/icon.svg"', 'src="data:image/svg+xml;base64,'+base64.b64encode((ROOT/'public/icon.svg').read_bytes()).decode()+'"')
 cookie = ''
+DIRECT_HTTP = os.environ.get('PRACTICE_BROWSER_HTTP') == '1'
 
 def transport(source, path, options):
     global cookie
@@ -40,15 +40,20 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1)
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    page.goto('about:blank')
-    page.set_content(html)
-    page.add_style_tag(content=(ROOT/'public/style.css').read_text())
-    page.expose_binding('localApi', transport)
-    page.evaluate('''() => {
-      window.fetch=async(path,options={})=>{const r=await window.localApi(path,options);return new Response(r.body,{status:r.status,headers:{'Content-Type':'application/json'}});};
-      if(!crypto.randomUUID)crypto.randomUUID=()=> '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
-    }''')
-    page.add_script_tag(content=(ROOT/'public/app.js').read_text(),type='module')
+    if DIRECT_HTTP:
+        response = page.goto('http://localhost:3000', wait_until='networkidle')
+        assert response.status == 200
+        assert "script-src 'self'" in response.headers.get('content-security-policy', '')
+    else:
+        page.goto('about:blank')
+        page.set_content(html)
+        page.add_style_tag(content=(ROOT/'public/style.css').read_text())
+        page.expose_binding('localApi', transport)
+        page.evaluate('''() => {
+          window.fetch=async(path,options={})=>{const r=await window.localApi(path,options);return new Response(r.body,{status:r.status,headers:{'Content-Type':'application/json'}});};
+          if(!crypto.randomUUID)crypto.randomUUID=()=> '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+        }''')
+        page.add_script_tag(content=(ROOT/'public/app.js').read_text(),type='module')
     expect(page.get_by_role('heading',name='あなたの資産')).to_be_visible()
     assert page.locator('nav button').count()==3
     page.screenshot(path=str(OUT/'welcome-mobile.png'))
@@ -60,6 +65,13 @@ with sync_playwright() as p:
     page.get_by_role('button',name='10万円で練習をはじめる').click()
     expect(page.locator('#dialog')).not_to_be_visible()
     expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
+    if DIRECT_HTTP:
+        session = next(c for c in page.context.cookies() if c['name'] == 'practice_session')
+        assert session['httpOnly'] and session['sameSite'] == 'Strict'
+        assert 'practice_session' not in page.evaluate('document.cookie')
+        page.reload(wait_until='networkidle')
+        expect(page.get_by_role('heading',name='最初の100株から、はじめよう。')).to_be_visible()
+
     page.locator('[data-tab=trade]').click()
     expect(page.get_by_role('heading',name='銘柄を探す',exact=True)).to_be_visible()
     page.locator('#search').fill('NTT')
@@ -117,6 +129,9 @@ with sync_playwright() as p:
     expect(page.locator('#dialog')).not_to_be_visible()
     page.locator('[data-tab=assets]').click()
     expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('200株')
+    if DIRECT_HTTP:
+        page.reload(wait_until='networkidle')
+        expect(page.locator('[data-symbol="9432.T"]')).to_contain_text('200株')
     page.set_viewport_size({'width':1280,'height':900})
     page.screenshot(path=str(OUT/'assets-desktop.png'))
     page.set_viewport_size({'width':360,'height':800})
@@ -153,7 +168,9 @@ with sync_playwright() as p:
     page.locator('#delete-form [type=submit]').click()
     expect(page.locator('#dialog')).not_to_be_visible()
     expect(page.get_by_role('heading',name='10万円から、気軽にはじめよう。')).to_be_visible()
+    if DIRECT_HTTP:
+        assert not any(c['name'] == 'practice_session' for c in page.context.cookies())
     assert not errors, errors
-    (OUT/'browser-result.json').write_text(json.dumps({'result':'PASS','transport':'isolated renderer + local HTTP API bridge','checks':['3-tab layout','password-only registration','search','insufficient balance','100-share increments and presets','non-lot inputs rejected','buyable lots floored to 100','buy confirmation','holding-to-sell','oversell rejected','history','history filter','logout','relogin persistence','360px no overflow','1280px desktop','account deletion with reauthentication','minimum 44px nav targets','no uncaught JS errors'],'responsive':responsive,'lot_size':100,'uncaught_js_errors':errors},ensure_ascii=False,indent=2))
-    print('PASS: UI purchase/sale/history/auth flow, mobile+desktop; no uncaught JS errors.')
+    (OUT/'browser-result.json').write_text(json.dumps({'result':'PASS','transport':('direct browser HTTP with native cookies and CSP' if DIRECT_HTTP else 'isolated renderer + local HTTP API bridge'),'checks':['3-tab layout','password-only registration','search','insufficient balance','100-share increments and presets','non-lot inputs rejected','buyable lots floored to 100','buy confirmation','holding-to-sell','oversell rejected','history','history filter','logout','relogin persistence','360px no overflow','1280px desktop','account deletion with reauthentication','minimum 44px nav targets','no uncaught JS errors'],'responsive':responsive,'lot_size':100,'uncaught_js_errors':errors},ensure_ascii=False,indent=2))
+    print('PASS:', 'direct HTTP/native cookies/CSP' if DIRECT_HTTP else 'isolated renderer/API bridge', '| UI purchase/sale/history/auth, 8 viewports; no uncaught JS errors.')
     browser.close()

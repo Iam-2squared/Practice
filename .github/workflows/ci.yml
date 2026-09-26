@@ -65,6 +65,8 @@ jobs:
           done
           exit 1
       - run: python tests/browser_smoke.py
+        env:
+          PRACTICE_BROWSER_HTTP: '1'
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-ui-evidence
