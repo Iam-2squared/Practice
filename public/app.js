@@ -119,7 +119,7 @@ function auth(mode='register') {
  showDialog(`${dialogHead(registering?'練習用の口座を作る':'おかえりなさい')}<p class="subtext">メールアドレス不要。パスワードだけで入れます。</p>
  ${originNotice()}${!state.config?.accountsAvailable?'<div class="notice error">口座保存の接続準備中です。管理者の設定後に利用できます。</div>':''}
  ${registering&&['permission-required','invalid-provider'].includes(state.config?.marketStatus)?'<div class="notice error">実株価の配信設定・利用許諾が未確認のため、新しい口座の作成は停止中です。既存のデモ口座にはログインできます。</div>':''}
- <form id="auth-form" data-mode="${mode}"><label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
+ <form id="auth-form" data-mode="${mode}">${registering?'<label class="field"><span>ユーザーネーム</span><input name="username" type="text" autocomplete="nickname" minlength="2" maxlength="20" required placeholder="2〜20文字"></label>':''}<label class="field"><span>パスワード</span><input name="password" id="password" type="password" autocomplete="${registering?'new-password':'current-password'}" minlength="20" maxlength="128" required placeholder="20文字以上の、ほかで使っていないもの"></label>
  <div class="password-actions">${registering?'<button type="button" data-action="generate">安全なパスワードを自動生成</button>':'<span></span>'}<button type="button" data-action="show-password">表示する</button></div>
  ${registering?'<label class="field"><span>もう一度入力</span><input name="confirmation" type="password" autocomplete="new-password" minlength="20" maxlength="128" required></label><label class="check"><input type="checkbox" name="saved" required><span>パスワードを保存しました。忘れた場合は復旧できず、知っている人はこの口座に入れることを理解しました。</span></label>':''}
  <div id="form-error" role="alert"></div><button class="primary full" type="submit" ${blocked?'disabled':''}>${registering?'10万円で練習をはじめる':'ログイン'}</button></form>
@@ -128,7 +128,7 @@ function auth(mode='register') {
 }
 function accountDialog() {
  if(!state.account)return auth('login'); const a=state.account;
- showDialog(`${dialogHead('アカウント')}<span class="pill">${currentProvider()==='demo'?'デモ練習口座':'日本株 練習口座'}</span><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
+ showDialog(`${dialogHead('アカウント')}<span class="pill">${currentProvider()==='demo'?'デモ練習口座':'日本株 練習口座'}</span><form id="username-form" class="username-form"><label class="field"><span>ユーザーネーム</span><input name="username" type="text" minlength="2" maxlength="20" required value="${esc(a.username)}"></label><div id="username-error" role="alert"></div><button class="primary full" type="submit">ユーザーネームを保存</button></form><dl class="details"><div><dt>口座ID</dt><dd>${esc(a.id.slice(0,8))}</dd></div><div><dt>初期資金</dt><dd>¥100,000</dd></div><div><dt>保存先</dt><dd>${state.config.storage==='local'?'ローカル開発サーバー':'クラウド（専用DB）'}</dd></div><div><dt>ログイン方法</dt><dd>パスワードのみ</dd></div></dl><div class="notice">パスワードを忘れた場合は復旧できません。新しい端末でも、同じサイトに同じパスワードでログインしてください。</div><button class="secondary full" data-action="logout">ログアウト</button><button class="link-button account-delete" data-action="delete-account">口座と履歴を削除</button><p class="fineprint">仮想売買専用。氏名・メール・証券口座・クレジットカード情報は収集しません。サーバーにはパスワードの検証用ハッシュ、口座残高、保有株、売買履歴、ログインセッションを保存します。</p>`);
 }
 function deleteAccountDialog() {
  if(state.pending){toast('未確認の注文結果を確認してから削除してください。');return;}
@@ -188,11 +188,17 @@ async function submitAuth(form) {
  if(form.dataset.mode==='register'&&password!==data.get('confirmation')){$('#form-error').innerHTML='<div class="notice error">パスワードが一致しません。</div>';return;}
  state.busy=true;form.querySelector('[type=submit]').disabled=true;$('#form-error').textContent='';
  try {
-  const result=await api(form.dataset.mode,{password});state.account=result.account;loadPending();state.busy=false;
+  const username=form.dataset.mode==='register'?String(data.get('username')||''):undefined;
+  const result=await api(form.dataset.mode,form.dataset.mode==='register'?{password,username}:{password});state.account=result.account;loadPending();state.busy=false;
   form.reset();closeDialog();render();await refreshPortfolio();toast('練習用の口座にログインしました。');
  } catch(error) {state.busy=false;if($('#form-error')){$('#form-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;form.querySelector('[type=submit]').disabled=false;}else toast(error.message);}
 }
-document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
+async function submitUsername(form){
+ if(state.busy)return;state.busy=true;const button=form.querySelector('[type=submit]');button.disabled=true;$('#username-error').textContent='';
+ try{const result=await api('username',{username:String(new FormData(form).get('username')||'')});state.account=result.account;state.busy=false;closeDialog();render();toast('ユーザーネームを変更しました。');}
+ catch(error){state.busy=false;button.disabled=false;$('#username-error').innerHTML=`<div class="notice error">${esc(error.message)}</div>`;}
+}
+document.addEventListener('submit',event=>{if(event.target.id==='delete-form'){event.preventDefault();deleteAccount(event.target);}if(event.target.id==='auth-form'){event.preventDefault();submitAuth(event.target);}if(event.target.id==='username-form'){event.preventDefault();submitUsername(event.target);}if(event.target.id==='trade-form'){event.preventDefault();updateEstimate();if(!$('#order-next').disabled)confirmOrder(Number($('#quantity').value));}});
 document.addEventListener('input',event=>{if(event.target.id==='quantity')updateEstimate();if(event.target.id==='search'){state.query=event.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchStocks(state.query),300);}});
 document.addEventListener('click',async event=>{
  const b=event.target.closest('button');if(!b||b.disabled||state.busy)return;
