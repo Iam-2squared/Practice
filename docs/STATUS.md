@@ -1,41 +1,86 @@
-# Practice 0.5 — Crypto / FX price charts
+# Practice v1 — PUBLIC RELEASE FREEZE
 
-保存時刻: 2026-09-26 23:54 JST
+保存時刻: 2026-09-27 01:18 JST
 
-作業ブランチ: `feature/price-charts`
+Freeze candidate base: `aa8dfe8872647df833d6303cedcda742d8c824b7`
 
-開始時main: `8797e89337cf703bbb45a8d4f1dfc8b22d51b8f3`
+Production: https://practice-ashy-delta.vercel.app/
 
-## 現在の状態
+## v1 scope
 
-- 0.4の5タブ、円建て現物仮想売買、10万円ウォレット、認証、ランキング、履歴、口座削除、資産ごとのコンパクトな保有損益を維持。
-- BTC / ETH / SOL / XRPの詳細に24H / 7D / 30D / 90D / 1Yラインチャートを実装。履歴点の実粒度は約5分 / 約1時間 / 日次として表示し、OHLCや1分足には見せない。
-- USD/JPY / EUR/JPY / GBP/JPY / AUD/JPYの詳細に7D / 1M / 3M / 1Y / 5Yラインチャートを実装。Frankfurterの日次営業日だけを表示し、休日を補間しない。
-- 選択期間の騰落率はチャート先頭値基準。資産画面の取得原価基準損益とは別。マウス、タッチ、キーボードで各点の日時・価格を確認可能。
-- 読込中、空データ、取得失敗を区別。チャート失敗時も現在価格と有効な注文は独立して利用可能。チャート値を価格トークン・約定・評価原価へ渡さない。
-- 期間切替はチャート領域だけを更新し、数量入力を保持。request/epoch/銘柄/期間を照合し、高速切替、モーダル閉鎖、銘柄変更、ログアウト後の古い応答を破棄。
-- Crypto履歴は銘柄・期間別共有キャッシュ（24H: 1時間、7〜90D: 6時間、1Y: 24時間）。FX履歴は24時間。全期間・全銘柄の先読み、背景更新、無限再試行なし。
-- CoinGeckoチャート新規取得はDBでUTC月500 callに制限。現在価格の最大8,928 call/月と合わせてアプリ管理上9,428 call/月以内に抑え、現在価格用キャッシュを履歴から分離。
-- 追加DBは `practice_chart_cache` と `practice_provider_budgets` のみ。既存口座、認証、ウォレット、保有、原価、取引履歴を更新・削除しない。
+Practice is a free paper-trading game using virtual JPY only. It performs no real orders, deposits, withdrawals, transfers, leverage or short selling.
 
-## 確認済み
+Public entry:
+- Landing page: `/`
+- Trading app: `/app.html`
+- Explicit “本物のお金は使いません / すべて仮想資金での練習です” onboarding.
+- User-facing account wording is “仮想口座”.
+- Terms, Privacy Policy, market-data explanation and provider attribution are public.
 
-- 開始時GitHub: mainは上記SHA、未完了PR・同名チャートブランチなし。既存mainのVercel checkはsuccess。
-- 開始時Supabase: `ACTIVE_HEALTHY`、publicに既存2口座・Crypto/FX取引2件。migration直前には既存3口座・取引4件で、他利用とみられる増分も含めて変更対象外として保護。
-- 公式仕様確認: CoinGecko Demoは10,000 credits/月、100 calls/min、日次/時間履歴1年、5分履歴1日。Frankfurter v1は日次時系列を提供し、v2推奨だが継続稼働と記載。
-- Node実装テスト: 101 / 101 PASS。履歴形式、日時、順序、値、空/欠損/異常/過大、期間拒否、429/timeout、同時取得、共有cache、月間guard、現在価格との独立、売買/認証/ランキング回帰を含む。
-- `npm run check`: 21 JavaScript files PASS。`npm run build`: PASS。`git diff --check`: PASS。
-- HTTPブラウザテストは、期間高速切替、数量保持、pointer/touch、320〜1280px、閉鎖/ログアウト競合を追加済み。
-- PR [#5](https://github.com/Iam-2squared/Practice/pull/5) を作成。head `b955604c93cfc8f4bc30345498e73bc835fef06e` のCI Run `36249392595` は app / database / mobile-ui が全成功し、Vercel previewもReady。
-- PR #5はmerge commit `dfba3386ba839a61e91fa8712ae3527a22256ffa` でmainへ反映。main CI Run `36249664369` は app / database / mobile-ui / public-deploymentが全成功し、Vercel production checkもsuccess。
-- Production Supabaseへmigration `20260926144350 practice_price_charts_v05` を適用。適用前後で既存3口座・4取引・3ウォレット・4セッションの件数は不変。新規2テーブルはRLS有効、anon/authenticated権限なし、service_role限定。claim関数はtransaction rollback内で動作確認。
-- Supabase advisorはperformance指摘なし。securityのINFOは、server-onlyテーブルでRLSを有効にしbrowser向けpolicyを意図的に置かない既存方式（新規2テーブルを含む）。
+Markets:
+- Crypto: BTC / ETH / SOL / XRP via CoinGecko Demo.
+- FX: USD/JPY / EUR/JPY / GBP/JPY / AUD/JPY via Frankfurter / ECB reference data.
+- Crypto charts: 24H / 7D / 30D / 90D / 1Y.
+- FX charts: 7D / 1M / 3M / 1Y / 5Y.
+- Chart history is reference-only and never becomes the signed execution quote.
 
-## 未完了・次の手順
+Game:
+- Initial virtual cash: JPY 100,000.
+- Cash, valuation, unrealized/realized P/L, per-position percentage return.
+- Buy/sell history, username, login/logout, leaderboard and virtual-account deletion.
+- Password minimum remains six characters by product choice; reuse of important passwords is discouraged and there is no email recovery.
 
-- ローカル環境にはChromium/Postgresがなく、Playwright Chromium取得も実行環境の配布URL制限で失敗。代わりにGitHub CIの実HTTP Playwright `mobile-ui` とPostgres `database` を成功確認済み。
-- 本番v0.5.0とCrypto 4銘柄の24H実履歴（各288〜289点、約5分粒度）を確認。本番のFX検証では、期間開始日が休日のときFrankfurterが返す直前営業日の境界点を拒否する問題を検出。架空補間はせず、選択期間外の境界点だけを除外する修正と回帰テストを `fix/fx-chart-weekend-range` で作業中。
-- 上記FX修正のPR/CI/merge/本番反映、FX 4通貨の実データ再確認、本番の認証済みチャート画面操作は未確認。一時検証口座は売買0件で削除済み。
-- Vercel管理コネクタはチームscope 403。環境変数や課金設定は変更せず、GitHub連携check、公開HTTPS、runtime errorで検証する。
+## Data and free-tier controls
 
-次: FX境界修正PR → CI → merge → main CI/Vercel → 隔離した一時口座で全8銘柄の実履歴を再確認し、売買せず削除する。
+- CoinGecko current quotes: shared four-symbol cache, maximum modelled 8,928 provider calls in a 31-day month.
+- Crypto chart provider misses: DB hard limit 500 per UTC month.
+- Modelled application maximum: 9,428 CoinGecko calls/month, leaving 572 calls of the 10,000 Demo allowance as buffer.
+- Chart cache: Crypto 24H 1h; 7D–90D 6h; 1Y 24h. FX history 24h.
+- No all-period prefetch, chart polling or infinite retry.
+- FX history keeps actual business dates and does not invent weekend/holiday values.
+- Provider attribution is shown publicly: Powered by CoinGecko API; Frankfurter / ECB reference rates.
+
+## Release evidence
+
+Chart release:
+- PR #5 merged: `dfba3386ba839a61e91fa8712ae3527a22256ffa`.
+- FX holiday-boundary fix PR #6 merged: `76f90cd50330e75c7061c069f7b64622814342be`.
+- Production real-data verification succeeded for all eight instruments: Crypto 24H returned 288–289 approximately five-minute points; each FX 7D query returned five business-day points.
+- No production trades were made for chart verification; the isolated temporary verification account was deleted.
+
+Public-readiness:
+- PR #7 legal/privacy/attribution: `752cfb5eecbdfa8edc0fa2b46dbb160ff7d84e97`.
+- PR #8 public landing: `825daa3d4806f2ede969ff8981c8ee4042cae047`.
+- PR #9 no-real-money emphasis: `769ffb970caf75344643a80acce86185037ea57b`.
+- PR #10 virtual-account wording: `e59397a319cd8023e26da0d0c0207e17fa06b8a0`.
+- PR #11 Vercel Web Analytics: `aa8dfe8872647df833d6303cedcda742d8c824b7`.
+- Main CI Run `36254501377`: app / database / mobile-ui / public-deployment all SUCCESS.
+- Vercel production status for the same commit: SUCCESS.
+- Vercel Web Analytics Hobby is enabled; user-visible dashboard confirmed collection (4 visitors / 9 page views at the first check). No paid Analytics plan or custom events were enabled.
+
+## Security / data gate
+
+Final Supabase audit on 2026-09-27 JST:
+- Nine `practice_*` tables have RLS enabled.
+- `anon` and `authenticated` have no SELECT privilege on all nine.
+- Security advisor reports INFO only for “RLS enabled, no policy”; this is intentional for server-only service-role tables.
+- Existing user data was not reset or deleted by release preparation.
+- At final audit the database contained 3 accounts, 3 wallets and 18 Crypto/FX asset-trade records. These are production records and are not release fixtures.
+- Secrets remain server-side; no API key or Supabase secret is intentionally shipped to browser code.
+- Signed per-account execution quotes, expiry, CSRF/origin controls, secure session cookies, idempotency and integer money/quantity rules remain in place.
+
+## Deferred after v1
+
+Not part of this release:
+- Advertising / AdSense.
+- Rewarded ads or virtual-cash rewards.
+- Paid Vercel services.
+- Custom domain.
+- Real-money trading or broker/exchange integration.
+- Custom analytics events.
+
+Advertising is intentionally deferred until the product has meaningful daily usage; the current product decision is to reconsider at roughly 100 daily visitors. Any advertising/reward implementation requires a separate review of provider policy, hosting plan, ranking fairness and server-side reward verification.
+
+## Release decision
+
+The implemented v1 feature set and public-release controls satisfy the current project completion gate. Remaining items above are explicitly deferred product work, not blockers for the free, ad-free paper-trading v1 release.
