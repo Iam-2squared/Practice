@@ -1,0 +1,32 @@
+{
+  "savedAt": "2026-09-26T18:05:51+09:00",
+  "version": "0.2.1",
+  "implementationCommit": "66df8be61f65cc1d492791ff4d7f3e2a06dcb1d3",
+  "implementationTree": "3237e02738d42501b099b919c4bb5c36a7445af7",
+  "featureCiRun": 36231482310,
+  "mainCiRun": 36231618510,
+  "jobs": {"app": "SUCCESS", "database": "SUCCESS", "mobile-ui": "SUCCESS", "public-deployment": "SUCCESS"},
+  "nodeTests": {"passed": 132, "failed": 0},
+  "browser": {"engine": "Chromium", "transport": "native HTTP and browser cookies/CSP", "viewports": 8, "newProviderUiChecks": "mock config only", "iosDeviceTest": "NOT_RUN"},
+  "publicConfiguration": {
+    "observedAt": "2026-09-26T18:04:49+09:00",
+    "jobId": 108375905506,
+    "origin": "https://practice-ashy-delta.vercel.app",
+    "result": "PASS",
+    "version": "0.2.1",
+    "accountsAvailable": true,
+    "storage": "supabase",
+    "provider": "demo",
+    "marketStatus": "demo",
+    "lotSize": 100,
+    "initialCashMinor": 10000000,
+    "setupIssues": [],
+    "scope": "Read-only public config; not a DB write or live-price test"
+  },
+  "productionDatabase": {"readOnlyVerified": true, "accounts": 1, "trades": 2, "cashMinor": 10000000, "positions": 0, "market": "demo", "activeSessions": 2},
+  "productionDatabaseWritesByThisWork": 0,
+  "environmentOrSecretChangesByThisWork": 0,
+  "yahooLiveAccess": "NOT_VERIFIED",
+  "yahooPublicRedistributionPermission": "NOT_OBTAINED",
+  "paidSubscriptionsPurchased": false
+}
