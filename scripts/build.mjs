@@ -1,3 +1,3 @@
-import { cp, mkdir, rm } from 'node:fs/promises';
-await rm('dist',{recursive:true,force:true}); await mkdir('dist',{recursive:true}); await cp('public','dist',{recursive:true});
-console.log('Built static client into dist/. Vercel bundles api/index.js separately.');
+import {buildSite} from './localize.mjs';
+const result=await buildSite();
+console.log('Built Japanese and English pages and content-hashed app bundles into '+result.out+'.');
