@@ -1,68 +1,80 @@
-# Practice 1.1 — 仮想トレードを遊んで学ぶ
+# Practice 1.2 — Play. Learn. Practice trading.
 
-10万円の仮想資金で体験する、無料・広告なしのペーパートレードゲームです。
-**本物のお金は使いません。実際の暗号資産・外貨の注文、入出金、換金はありません。**
+A free, ad-free Crypto/FX paper trading game, starting with **JPY 100,000 in virtual funds**.
+**No real money, deposits, withdrawals, real orders or cash redemption.**
 
-- 紹介ページ: https://practice-ashy-delta.vercel.app/
-- ゲーム: https://practice-ashy-delta.vercel.app/app.html
-- 最新の作業状況・確認結果・次の方針: [docs/STATUS.md](docs/STATUS.md)
+仮想の10万円でトレードを体験するゲームです。本物のお金は使いません。
 
-## 5つのタブ
+- Automatic entry: https://practice-ashy-delta.vercel.app/
+- 日本語: https://practice-ashy-delta.vercel.app/ja/index.html
+- English: https://practice-ashy-delta.vercel.app/en/index.html
+- Game: https://practice-ashy-delta.vercel.app/app.html
+- Current implementation/deployment state, evidence and next steps: [docs/STATUS.md](docs/STATUS.md)
+
+## Japanese / English
+
+Japan defaults to Japanese; other countries default to English, using the existing Vercel country header rather than GPS. Unknown location falls back to browser language. Manual language selection is saved in the current browser and takes priority on automatic entry URLs. Explicit `/ja/` and `/en/` links preserve the requested language. A selector is available on the public pages and game.
+
+Both languages use the same account, wallet, transaction ledger and achievements. **Money remains JPY; English does not convert the game to USD.** Ranking weeks remain Monday 00:00 JST (UTC+9). Usernames and comments are not translated. No translation provider, new API key or dependency is used.
+
+Details and verification boundaries: [docs/LOCALIZATION.md](docs/LOCALIZATION.md).
+
+## Five tabs / 5つのタブ
+
+**Portfolio / Markets / Challenges / Rankings / Account**
 
 **資産 / マーケット / チャレンジ / ランキング / アカウント**
 
-マーケット内で仮想通貨・FXを切り替えます。資産画面には総資産、現金、保有中の損益、最近の売買記録、結果シェアがあります。現物のみで、信用・空売り・レバレッジはありません。
+Markets switches between Crypto and FX. Portfolio shows total assets, cash, holding returns, recent trades and result sharing. Spot-style virtual trades only; no leverage or short selling.
 
-チャレンジには5つの初心者ミッションと6つの実績があります。獲得した実績はプロフィールで最大3つ選び、ランキングの名前の横に表示できます。狭い画面では読みやすく折り返します。
+Challenges contains five beginner missions and six permanent achievements. Select up to three earned achievements in Profile to display alongside your name in rankings. Rankings switches between weekly JPY change and total assets, retains sell-only counts and links to community discussion. Each of the eight markets also has its own comments.
 
-ランキングは「週間ランキング / 総資産ランキング」の切替式です。総合コメントへの入口と、各ユーザーの売却回数表示を維持しています。銘柄詳細からは8銘柄それぞれのコメント欄を開けます。
+## Weekly rankings and achievements
 
-## 週間ランキング・実績
+- Weekly score = current total assets minus starting assets this week, not percentage or realized-only P/L.
+- Monday 00:00 Asia/Tokyo is the boundary. Starting cash and quantities are reconstructed from the trade ledger and valued using actual earlier historical reference points.
+- Per-symbol/week prices are frozen once for everyone. Crypto uses approximately hourly history; FX uses the prior business-day reference.
+- New participants compare against their initial virtual JPY100,000. Missing prices/results are shown as unknown, never invented zero values.
+- Six achievements: +JPY1,000, +JPY2,000, 3 Crypto trades, 3 FX trades, experiencing -JPY1,000 or -JPY2,000.
+- Amount thresholds measure total-asset change from initial funds. Each completed purchase or sale counts once for trade achievements; ranking sales counts remain sell-only.
+- Earned achievements persist. Historical unobserved P/L peaks are not invented; recorded trade counts carry forward.
+- No monetary rewards or ads for missions. Loss achievements record experience, not a goal to lose money.
 
-- 週間の金額 = 現在の総資産 − 週初の総資産。パーセントや確定損益だけの比較ではありません。
-- 日本時間の月曜0時で週を区切ります。週初の現金・数量を売買記録から復元し、週初以前の本物の履歴点で評価します。
-- 基準価格は銘柄・週ごとに一度保存し、同じ週の全員に共通で使用します。Cryptoは約1時間の履歴点、FXは直前営業日の日次参考値です。
-- 週内の新規参加者は初期の仮想10万円が基準です。基準価格や現在価格が不明なら「—」とし、架空の損益や順位は作りません。
-- 6実績: ＋1,000円、＋2,000円、仮想通貨3売買、FX3売買、−1,000円の経験、−2,000円の経験。
-- 金額は初期10万円からの総資産の増減。売買は成立した購入・売却をそれぞれ1回と数えます。ランキングの「売却 N回」は従来どおり売却のみです。
-- 実績はサーバーで条件を確認したときに獲得し、一度獲得すると残ります。導入前の未記録の評価損益の最高・最低値は推測しません。既存の成立済み売買回数は引き継ぎます。
-- ミッション・実績で資金を追加したり、報酬のために広告を表示したりすることはありません。損失の実績は経験の記録であり、損失を増やす目標ではありません。
+Calculation details: [docs/CHALLENGES.md](docs/CHALLENGES.md).
 
-詳しい計算方法・制限: [docs/CHALLENGES.md](docs/CHALLENGES.md)
+## Market data
 
-## 市場データ
+Crypto: BTC / ETH / SOL / XRP, JPY reference data via CoinGecko Demo with the existing server key. FX: USD/JPY / EUR/JPY / GBP/JPY / AUD/JPY, business-day daily reference rates through Frankfurter / ECB, **not real-time FX**.
 
-- 仮想通貨: BTC / ETH / SOL / XRP。CoinGecko Demoの円建て参考価格。既存サーバーAPIキーを使用。
-- FX: USD/JPY / EUR/JPY / GBP/JPY / AUD/JPY。Frankfurter / ECBの営業日日次参考レート。リアルタイムFXではありません。
-- 現在値は4銘柄ずつまとめ、Cryptoは5分、FXは4時間の共有キャッシュを使用。
-- ラインチャートはCrypto 24H / 7D / 30D / 90D / 1Y、FX 7D / 1M / 3M / 1Y / 5Y。架空の休日レートやOHLCを追加しません。
-- 履歴は必要時だけ取得。現在価格とは別キャッシュ・別失敗経路です。チャート値・週間基準値を約定価格に使いません。
-- 週間基準値にも既存の履歴取得を再利用し、CoinGecko履歴の月500回DBガードを共用します。
-- 無料枠や利用許諾を無条件に保証するものではありません。契約上の用途・割当量を確認してください。
+Current four-symbol batches use a shared cache: Crypto 5 minutes; FX 4 hours. Charts cover Crypto 24H / 7D / 30D / 90D / 1Y and FX 7D / 1M / 3M / 1Y / 5Y. No fabricated holiday prices or OHLC. History is fetched on demand, independently of current quotes; chart/weekly-reference prices never become execution quotes. Weekly history shares the existing CoinGecko monthly 500-history-call DB guard. Data licensing and provider quotas remain the operator's responsibility.
 
-## 仮想口座と記録
+## Account safety
 
-ユーザーネームは2〜15文字、パスワードは6〜128文字。ログインはパスワードだけで、メール復旧機能はありません。他サービスの重要なパスワードは使い回さないでください。
-仮想口座削除には本人確認と明示確認が必要です。履歴・セッション・コメント・進捗・実績設定も連鎖削除され、ランキングから消えます。
-本番でユーザー指示により整理済みの旧日本株データは復元しません。旧銘柄の検索・価格取得・新規注文はありません。
+Usernames: 2–15 characters. Passwords: 6–128 characters. Password-only sign-in; no email recovery. Never reuse important passwords. Account deletion requires password verification and explicit confirmation, and cascades to history, sessions, comments and progression. Legacy Japanese-equity data previously removed at the user's request is not restored; old equities are not available for new trades.
 
-## 実行・検証
+## Run and verify
 
 ```sh
 npm ci --ignore-scripts
-npm test
 npm run check
+npm test
 npm run build
 npm run dev
 ```
 
-開発用データは `.local-crypto-fx/`。本番はSupabase専用です。
-新規の空DBでは順に `db/bootstrap.sql` → `db/crypto_fx.sql` → `db/price_charts.sql` → `db/comments.sql` → `db/ranking_activity.sql` → `db/progression.sql` を適用します。
-既存の本番への今回の追加移行は `db/progression.sql` のみです。既存口座やウォレットを初期化するために過去の移行を再実行しないでください。
-`db/smoke.sql` と `db/progression_smoke.sql` は隔離したfixtureで検証し、ROLLBACKします。
+Both build and dev compile static `/ja/` and `/en/` pages into `dist/`. Source-time translations are maintained in `locales/`; untranslated English surfaces fail the build. Do not add runtime replacement of user content.
 
-UIテストは `node tests/ui-server.mjs` を起動し、`python tests/browser_smoke.py` と `python tests/progression_browser.py` を実行します。HTTP/Cookie付きの実APIを、外部価格だけfixtureで検証します。画面検証は320 / 390 / 768 / 1280pxを含みます。
-`PRACTICE_UI_ISOLATED=1` は表示だけの検証です。CIやfixtureの成功を、本番既存ユーザーでの全操作確認と混同しないでください。
+Local data lives in `.local-crypto-fx/`. Production uses Supabase. For a NEW empty database only, apply `db/bootstrap.sql`, `db/crypto_fx.sql`, `db/price_charts.sql`, `db/comments.sql`, `db/ranking_activity.sql`, `db/progression.sql` in order. **The 1.2 language release requires no database migration.** Never replay initialization SQL to reset existing users.
 
-本番設定は `.env.example` と `docs/DEPLOY.md`、市場データ条件は `docs/MARKET_DATA.md` を参照。
-秘密鍵・パスワード・CookieをGitに保存しないでください。既存のv1.0.0タグは移動しません。
+`db/smoke.sql` and `db/progression_smoke.sql` use isolated fixtures and roll back. For browser tests, run `node tests/ui-server.mjs`, then:
+
+```sh
+python tests/browser_smoke.py
+python tests/progression_browser.py
+python tests/localization_browser.py
+```
+
+These exercise actual localhost HTTP/Cookie flows with fixture market prices, not production user trades. English tests cover country/default selection, manual preference, blocked storage, locale-request failure, trading, badges, comments, result sharing, language changes and uncertain-order replay, plus 320/390/768/1280px layouts. Production CI checks anonymous configuration, authentication boundaries and exact deployed bilingual assets separately.
+
+Configuration: `.env.example`, `docs/DEPLOY.md`. Provider rules: `docs/MARKET_DATA.md`.
+Never commit passwords, cookies, private keys or DB credentials. The original v1.0.0 tag is preserved.
