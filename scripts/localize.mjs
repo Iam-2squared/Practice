@@ -1,0 +1,63 @@
+import {readFile,writeFile,mkdir,cp,rm} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {EN} from '../locales/en.mjs';
+import {EN_PAGES} from '../locales/en-pages.mjs';
+const dictionary={...EN,...EN_PAGES};
+const escapeRegExp=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const pattern=new RegExp(Object.keys(dictionary).sort((a,b)=>b.length-a.length).map(escapeRegExp).join('|'),'gu');
+const cjk=/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+export function translateSource(text,{js=false,name='source'}={}){
+ const result=text.replace(pattern,key=>js?dictionary[key].replace(/[\\'"`]/g,c=>'\\x'+c.charCodeAt(0).toString(16).padStart(2,'0')):dictionary[key]);
+ if(cjk.test(result)){const missing=[...new Set(result.split(/[<>\n'"`]/).filter(s=>cjk.test(s)))];throw Error(`Missing English copy in ${name}:\n${missing.join('\n')}`);}
+ return result;
+}
+const hash=s=>createHash('sha256').update(s).digest('hex').slice(0,12);
+const pages=['index.html','app.html','terms.html','privacy.html','data.html'];
+const names={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',USDJPY:'US Dollar / JPY',EURJPY:'Euro / JPY',GBPJPY:'British Pound / JPY',AUDJPY:'Australian Dollar / JPY'};
+const privacy='<h2>表示言語</h2><p>初回表示はVercelがアクセス元IPから推定する国情報を使い、日本は日本語、それ以外は英語を選びます。国情報が不明な場合はブラウザ言語を使います。GPS・精密な位置情報の許可は求めず、言語判定のために国情報をデータベースへ追加保存しません。手動で選んだ言語は、このブラウザのローカルストレージに保存します。VPN等により推定国が実際の所在地と異なる場合は手動で変更できます。</p>';
+export async function buildSite(root=resolve(import.meta.dirname,'..')){
+ const out=resolve(root,'dist');await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp(resolve(root,'public'),out,{recursive:true});
+ const write=(path,text)=>writeFile(resolve(out,path),text);
+ const bundleNames={};
+ for(const language of ['ja','en']){
+  let progress=await readFile(resolve(root,'public/progress-ui.js'),'utf8');
+  if(language==='en')progress=translateSource(progress,{js:true,name:'progress-ui.js'}).replaceAll("'ja-JP'","'en-GB'");
+  const progressName=`progress-ui.${language}.${hash(progress)}.js`;await write(progressName,progress);
+  let app=await readFile(resolve(root,'public/app.js'),'utf8');
+  if(!/\.\/progress-ui\.js\?v=/.test(app))throw Error('Progress import changed: review localization integration.');
+  app=app.replace(/\.\/progress-ui\.js\?v=[^']+/g,'./'+progressName);
+  const header="headers:body===undefined?{}:{'Content-Type'";
+  if(!app.includes(header))throw Error('API transport changed: review locale header integration.');
+  app=app.replace(header,`headers:body===undefined?{'X-Practice-Language':'${language}'}:{'X-Practice-Language':'${language}','Content-Type'`);
+  app=app.replace("url:location.origin+'/'",`url:location.origin+'/${language}/index.html'`);
+  if(language==='en'){
+   // Translate immutable source literals, NEVER assembled HTML or user strings.
+   app=translateSource(app,{js:true,name:'app.js'}).replaceAll("'ja-JP'","'en-GB'");
+   app=app.replace("currency:'JPY',maximumFractionDigits", "currency:'JPY',currencyDisplay:'code',maximumFractionDigits");
+   app=app.replace(/esc\((t|pos|a|q|c)\.name\)/g,(_,id)=>`esc(displayAssetName(${id}.symbol,${id}.name))`);
+   app=`const displayAssetName=(symbol,fallback)=>(${JSON.stringify(names)})[symbol]||fallback;\n`+app;
+  }
+  const appName=`app.${language}.${hash(app)}.js`;await write(appName,app);bundleNames[language]=appName;
+ }
+ const loader=`import {ready,language,navigating} from './site-language.js?v=1.2.0';\nawait ready;\nif(!navigating)await import('./'+(${JSON.stringify(bundleNames)})[language]);\n`;
+ await write('app-loader.js',loader);
+ for(const page of pages){
+  let source=await readFile(resolve(root,'public',page),'utf8');
+  if(page==='privacy.html')source=source.replace('</main>',privacy+'</main>');
+  source=source.replace(/<script type="module" src="\/app\.js[^\"]*"><\/script>/,'<script type="module" src="/app-loader.js?v=1.2.0"></script>');
+  if(page!=='app.html')source=source.replace('</head>','<script type="module" src="/site-language.js?v=1.2.0"></script></head>');
+  source=source.replace('</head>','<link rel="stylesheet" href="/locale.css?v=1.2.0"></head>');
+  for(const language of ['auto','ja','en']){
+   let html=language==='en'?translateSource(source,{name:page}):source;
+   html=html.replace('lang="ja"',`lang="${language==='en'?'en':'ja'}"`).replace('<html ',`<html data-locale-mode="${language}" `);
+   if(language!=='auto')html=html.replace(/href="\/(index\.html|app\.html|terms\.html|privacy\.html|data\.html)?"/g,(_,file)=>`href="/${language}/${file||'index.html'}"`);
+   const base='https://practice-ashy-delta.vercel.app';const path=language==='auto'?'/'+(page==='index.html'?'':page):`/${language}/${page}`;
+   const alternates=`<link rel="canonical" href="${base}${path}"><link rel="alternate" hreflang="ja" href="${base}/ja/${page}"><link rel="alternate" hreflang="en" href="${base}/en/${page}"><link rel="alternate" hreflang="x-default" href="${base}/${page==='index.html'?'':page}">`;
+   html=html.replace('</head>',alternates+'</head>');
+   if(language==='auto')await write(page,html);else{await mkdir(resolve(out,language),{recursive:true});await write(language+'/'+page,html);}
+  }
+ }
+ await write('locale-build.json',JSON.stringify({version:'1.2.0',languages:['ja','en'],bundles:bundleNames,policy:'explicit URL > saved preference > Vercel country > browser language > English',currency:'JPY',rankingTimezone:'Asia/Tokyo'},null,2)+'\n');
+ return{out,bundles:bundleNames};
+}
