@@ -1,79 +1,49 @@
 # Practice — current handoff
 
-保存時刻: 2026-09-27 20:32 JST
+保存時刻: 2026-09-27 23:19 JST
 
-## 現在の本番状態
+## Active work / current production
 
-**Practice 1.1.0 の実装・merge・本番反映確認まで完了。**
+**PR #21 / `feature/ja-en-localization`: Japanese and English localization. Not yet merged or deployed.**
 
-- 実装PR: #19 — beginner missions, weekly rankings and profile achievements
-- 本番実装commit: `6913c7ae375a036320d48803ef1c1a6ce6408394`
-- merge時のPR head: `a928c88690a08c0f8ac2ba907f4162ded2197c63`
-- 最終PR CI: `36315743395` 成功
-- 実装merge後のmain CI: `36315851847` (#143)、app / database / mobile-ui / public-deployment 全成功
-- Vercel: 同commitのデプロイ完了を確認
-- 本番smoke: 2026-09-27 20:29:40 JST、version 1.1.0 / Crypto enabled / FX enabled / storage supabase / PASS
-- 紹介ページ: https://practice-ashy-delta.vercel.app/
-- ゲーム: https://practice-ashy-delta.vercel.app/app.html
+Last confirmed production: 1.1.0, main `78d1f79bb732d60da33b27c7dbb9bd251162c659`; implementation PR #19 / `6913c7ae375a036320d48803ef1c1a6ce6408394`. The user confirmed on their phone that all 1.1 features worked on 2026-09-27 after the five-tab, mission, weekly ranking and achievement release. That feedback is user-reported evidence, separate from automated tests.
 
-このチェックポイントの後に追加されるdocs-only commitは、上記の実装内容を変更しません。最新main SHAはGitHubで確認してください。GitHub Release `v1.0.0` は元の `3ebee92e436a02e4d3d6d5cecb7507d2cb155dec` のまま保持し、移動していません。1.1.0のRelease/tag新規公開は未実施です。
+Production: https://practice-ashy-delta.vercel.app/
 
-## 今回完成した機能
+## Approved 1.2 scope
 
-**資産 / マーケット / チャレンジ / ランキング / アカウント** の5タブ。
+- Japan -> Japanese; elsewhere -> English on automatic entry. Manual preference stored in this browser and prioritized over country. Explicit language URLs remain explicit.
+- Stable `/ja/` and `/en/` landing, game, terms, privacy and market-data pages.
+- English app-owned UI, chart descriptions, API errors, missions, achievements, weekly/total rankings and result sharing.
+- No automatic translation of usernames or comments.
+- JPY remains the only game currency; initial virtual funds remain JPY100,000; weekly cutoff remains Monday 00:00 Asia/Tokyo.
+- Same account, cookie, wallet, history, badges and uncertain-order IDs across language changes.
+- No GPS permission, new external account/API key, paid service, advertisement, database migration or existing-user data reset.
 
-- マーケット内で仮想通貨・FXを切替。既存の8銘柄、チャート、売買、コメントを維持。
-- チャレンジに初心者ミッション5つ: 仮想口座作成 / チャート確認 / 初購入 / 初売却 / 資産・損益確認。完了状況はサーバーの操作・取引記録で判定。
-- 実績6つ: ＋1,000円突破 / ＋2,000円突破 / 仮想通貨3売買 / FX3売買 / −1,000円の経験 / −2,000円の経験。
-- 金額実績は初期仮想10万円からの総資産の増減。売買実績は成立した購入・売却を各1回として数える。既存のランキング `売却 N回` は引き続き売却のみ。
-- 獲得済み実績は相場が反転しても保持。損失実績は経験の記録であり、損失を増やす目標ではない旨を表示。
-- アカウント → プロフィールで獲得済み称号を0〜3つ選択し、ランキングの名前の横に表示。小画面では折り返す。未獲得・重複・4つ以上はサーバーでも拒否。
-- ランキング内で週間 / 総資産を切替。総合コメント、売却回数、共有機能、認証、仮想口座削除も維持。
+## Implementation checkpoint
 
-## 週間ランキングの計算
+New language API wrapper, source-time copy catalogs, localized HTML/bundle compiler, persistent selector, English FX search aliases and responsive styles are in the branch. Language bootstrap, loader and client bundles use content hashes. Both local dev and the isolated UI test server serve the actual built bilingual pages.
 
-**週間増減額 = 現在の総資産 − 週初の総資産**。率や確定損益だけではなく、円の増減額で比較します。
+Build completeness caught two missing profile labels; these were supplied rather than suppressing the guard. Original 122 tests passed on the earlier head, but that head's build failed, so it was NOT release-ready. New language tests and full English HTTP browser journeys have been added; latest complete CI results are still pending and must be reviewed before merge. Do not treat historical successful tests as proof of the latest head.
 
-週の境界は日本時間の月曜0時。全売買履歴から境界時点の現金・保有数量を復元し、その時点以前の実際の履歴価格で評価します。基準価格は銘柄・週ごとに一度保存し、全員に同じ価格を使います。初回ログイン時の価格を基準にする方式ではありません。
+Detailed routing, precedence, unchanged monetary semantics, privacy and verification requirements: `docs/LOCALIZATION.md`.
 
-Cryptoは約1時間粒度の履歴、FXは直前営業日の日次参考値です。取引所の週境界ちょうどの実行価格を保証するものではありません。週内参加者は初期仮想10万円から比較します。基準額または現在価格が取得不能なら損益・順位を「—」とし、架空の0円や現在価格で埋めません。
+## Existing product rules to preserve
 
-既存の成立済み売買回数は引き継ぎます。実績導入前に観測・保存されていない含み損益の最高値・最低値は推測しません。金額実績は有効なサーバー評価で条件を確認できた時点から獲得します。
+Five tabs: 資産 / マーケット / チャレンジ / ランキング / アカウント. Eight Crypto/FX instruments, charts, comments, text result sharing, 15-character usernames and sell-only counts on rankings remain supported.
 
-詳しい仕様・算式・制限: `docs/CHALLENGES.md`。
+Five beginner missions and six achievements (+JPY1,000 / +JPY2,000 / 3 Crypto trades / 3 FX trades / -JPY1,000 experience / -JPY2,000 experience). Choose up to three earned titles in Profile. Weekly score is current total assets minus starting total assets this week, reconstructed from the existing ledger and reference prices; missing values stay unknown. Loss achievements record experience, not a goal to lose money.
 
-## 検証済み
+Data contracts, shared quote/history cache, monthly chart budget, authorization, CSRF, signed execution quotes, integer arithmetic and trade idempotency must not change for localization. The v1.0.0 tag stays at `3ebee92e436a02e4d3d6d5cecb7507d2cb155dec`.
 
-- Node 122/122テスト成功、スキップ0。構文確認25 JSファイル成功、build成功。
-- JST週境界・年越し・新規参加・全売却後の週初保有復元・負の週損益・不明基準価格・固定基準・実績の維持・称号の認可を検証。
-- PostgreSQLの追加schema / 通常smoke / progression smokeがCI成功。
-- 実HTTP Playwrightで従来の売買回帰と新機能を検証。ミッション全5個完了、Crypto/FX実績の獲得、2称号の保存と再読込維持、ランキング高速切替、売却1回表示を確認。
-- 320 / 390 / 768 / 1280pxを検証。未読込画面や閉じたdialog内の残存要素を誤って証拠にしないよう、表示中の #main に限定して待機・確認するテストへ修正済み。
-- 正常読込後の390pxチャレンジ画面と320px週間画面を画像でも確認。uncaught browser errorなし。
-- UIの3つ選択上限は、明示的なモック獲得データで別途確認。偽の獲得データはサーバーに送信していない。API/SQL側でも未獲得・重複・4つ以上を拒否。
-- UI証拠: PR CI `36314989922` のartifact `10929983502`。SHA256 `f9a131923fc03ca7c46ba17b0d4ce9d858ff10e26891bcfd415ab07b7480763d`。同テストが最終PR CIとmain CIでも成功。
-- 実装・データ・本番確認の記録: `docs/verification/v1.1-release.json` と PR #19 の完了コメント。
+## Next steps
 
-## データ保護・追加料金なしの変更範囲
+1. Finish complete build, Node, DB and Japanese/English browser regressions for final PR head.
+2. Inspect actual loaded English 320/390px screenshots; fix any layout/copy defects.
+3. Merge only after green final checks; verify Vercel and anonymous production bilingual smoke.
+4. Save final commit IDs, test counts, deployment result, limitations and next steps here and in verification evidence.
+5. User phone and actual country/network verification remain separate. No existing production user's account is used for test trades.
 
-Supabase migration `20260927104402 practice_progression_weekly_v110` は再開前に適用済みと確認し、二重適用していません。追加は進捗と週初参考価格のテーブル/RPCです。既存の認証情報、残高、保有数量、取引履歴、コメントを削除・初期化していません。
+External listing/setup is on hold at the user's request. Current promotion is English-first under SOLUYRA and publicly concerns Practice only. Ads and paid services remain deferred. Future video generation must not consume paid credits without approval.
 
-再開時のDB集計は22仮想口座・22ウォレット・87売買・11コメント。ユーザー利用中のため件数は増え得ます。検証では既存ユーザーを売買させず、SQLのランダムな隔離fixtureをBEGIN〜ROLLBACK内のみで使用しました。閾値、実績維持、称号上限、古いwallet versionの拒否、連鎖削除、RPCスナップショットの検証に成功し、fixture変更は全てロールバック済み。
-
-新RPCはsecurity invoker / 空search_path / service_role限定。ブラウザロールの実行・テーブル権限を閉じ、RLSを維持。Security Advisorは意図した「RLS有効・browser向けpolicyなし」のINFOのみでした。
-
-週間基準価格は既存の履歴APIと共有キャッシュを再利用し、CoinGecko履歴月500回の既存DBガード内で取得します。追加の500回枠を作っていません。新しいAPIキー・広告・有料契約・cron・外部サービス登録・秘密鍵変更はありません。
-
-## 確認範囲と次の方針
-
-本番確認は配信version・静的ファイル・市場有効設定・認証境界のチェックです。既存ユーザーのスマホで新機能を全て操作したことや、次の実際の月曜の切替を観測したことまでは含みません。詳細操作と週境界はfixture/CIで検証しました。
-
-次はユーザーがアプリを再読み込みし、チャレンジ → ランキング切替 → アカウントのプロフィールを実機で確認する段階です。不具合があれば再現テストを追加して修正し、新規機能を無断で広げません。今回の実装に未保存の作業はありません。
-
-Vercel管理コネクタはチームscope403のままですが、既存GitHub連携のデプロイと本番smokeは成功しています。権限回避のために秘密鍵・課金設定を変更しないでください。
-
-## 継続ルール
-
-意味のある変更ごとにこのファイルへJST保存時刻・確認commit・CI/本番結果・未確認事項・次の方針を保存します。外部掲載/アカウント登録は保留。広告は利用が育ってから別途、本人確認付きの段階的作業とし勝手に開始しません。既存ユーザーデータとv1.0.0タグを保護します。
-
-以前の履歴: `docs/verification/status-before-1.1.md`。
+Earlier release evidence remains in `docs/verification/`, including `v1.1-release.json` and `status-before-1.1.md`. Save state and JST timestamps to GitHub after meaningful work so chat loss does not lose the recovery point.
