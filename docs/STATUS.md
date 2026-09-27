@@ -147,3 +147,18 @@ After each meaningful implementation/merge/release milestone, update this `docs/
 - next recommended work.
 
 This file is the canonical handoff if chat context is lost.
+
+
+## Milestone — 2026-09-27 19:03 JST
+
+Production main: `32656ed8b7798db0c9d5aaba6784bd4fefd0e844`
+
+- Added a no-provider, no-paid-service growth feature: portfolio result sharing from the Assets screen.
+- Share payload includes current virtual total assets, percentage return from initial JPY 100,000, a clear paper-trading/no-real-money description, and the public Practice URL.
+- Uses the browser/device native share sheet when available; clipboard fallback is used otherwise.
+- No database, market-data provider, quote, order, balance or account semantics changed.
+- PR #17 merged.
+- Final main CI Run `36311091308`: app / database / mobile-ui / public-deployment all SUCCESS.
+- Vercel production status: SUCCESS.
+
+Next growth work should continue to prefer features implementable entirely inside Practice while external directory/account setup is inconvenient. Candidate order: onboarding missions, weekly ranking/challenges, lightweight achievements, then further distribution work when convenient.
