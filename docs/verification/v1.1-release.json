@@ -1,0 +1,70 @@
+{
+  "recordedAt": "2026-09-27T20:32:00+09:00",
+  "version": "1.1.0",
+  "pullRequest": 19,
+  "implementationCommit": "6913c7ae375a036320d48803ef1c1a6ce6408394",
+  "reviewedHead": "a928c88690a08c0f8ac2ba907f4162ded2197c63",
+  "pullRequestCi": {
+    "runId": 36315743395,
+    "app": "success",
+    "database": "success",
+    "mobileUi": "success",
+    "publicDeployment": "skipped: PR event"
+  },
+  "mainCi": {
+    "runId": 36315851847,
+    "runNumber": 143,
+    "app": "success",
+    "database": "success",
+    "mobileUi": "success",
+    "publicDeployment": "success"
+  },
+  "unitAndApiTests": {"passed": 122, "failed": 0, "skipped": 0},
+  "syntaxCheck": {"files": 25, "result": "PASS"},
+  "build": "PASS",
+  "uiEvidence": {
+    "runId": 36314989922,
+    "head": "391a1d43126a4f6978702de5fb57e9aec579bae4",
+    "artifactId": 10929983502,
+    "sha256": "f9a131923fc03ca7c46ba17b0d4ce9d858ff10e26891bcfd415ab07b7480763d",
+    "mode": "real localhost HTTP API with provider fixtures",
+    "completedMissions": 5,
+    "achievementDefinitions": 6,
+    "genuinelyEarnedSelectedTitlesPersisted": 2,
+    "threeTitleLimit": "separate mocked earned profile for UI; server enforcement covered by API/SQL tests",
+    "viewports": [320, 390, 768, 1280],
+    "visibleContentScreenshotsInspected": ["challenges-390.png", "weekly-320.png"],
+    "uncaughtErrors": [],
+    "sameWorkflowPassedOnFinalPrAndMain": true
+  },
+  "supabase": {
+    "project": "mitowlxrsrhbtmehiyvh",
+    "migration": "20260927104402 practice_progression_weekly_v110",
+    "status": "already applied; confirmed without replaying migration",
+    "rollbackSmoke": "PASS; random isolated fixtures only; all changes rolled back",
+    "newRpcSecurity": "security invoker; empty search_path; service_role EXECUTE only",
+    "securityAdvisors": "INFO: RLS enabled without browser-role policies, intentional server-only design",
+    "existingCredentialsWalletsLedgersModifiedByTests": false
+  },
+  "deployment": {
+    "origin": "https://practice-ashy-delta.vercel.app",
+    "appPath": "/app.html",
+    "commit": "6913c7ae375a036320d48803ef1c1a6ce6408394",
+    "vercelCommitStatus": "success",
+    "vercelUrl": "https://vercel.com/iam-2squareds-projects/practice/xjVLVtbihxCetp1cYbrjfusRe9ZC",
+    "smokeAt": "2026-09-27T20:29:40+09:00",
+    "smokeResult": {"result": "PASS", "version": "1.1.0", "provider": "multi", "markets": {"crypto": "enabled", "fx": "enabled"}, "storage": "supabase"},
+    "scope": "anonymous config, delivered assets and authentication boundaries; no production user trades"
+  },
+  "notClaimed": [
+    "All existing users' devices tested",
+    "Authenticated production end-to-end trading tested for this release",
+    "Actual future Monday rollover observed",
+    "Exact exchange midnight tick valuation",
+    "Retroactive recovery of unobserved historical profit/loss extrema",
+    "New GitHub v1.1.0 Release or tag published"
+  ],
+  "originalReleaseTagPreserved": "v1.0.0",
+  "noNewPaidServiceOrSecretChange": true,
+  "next": "Confirm the refreshed app on the user's phone; prioritize bug reports before new features. Keep STATUS.md current."
+}
