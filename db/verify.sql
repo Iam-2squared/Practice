@@ -11,3 +11,9 @@ select p.proname,p.prosecdef as security_definer,
  has_function_privilege('service_role',p.oid,'execute') as server_execute
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 where n.nspname='public' and p.proname in ('practice_commit_trade','practice_rate_limit','practice_valid_state','practice_claim_chart','practice_save_chart','practice_fail_chart');
+
+-- Community comments stay server-only like all Practice user data.
+do $$ begin
+ if not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='practice_comments' and c.relrowsecurity) then raise exception 'practice_comments RLS missing'; end if;
+ if has_table_privilege('anon','public.practice_comments','SELECT') or has_table_privilege('authenticated','public.practice_comments','SELECT') then raise exception 'practice_comments browser privilege leak'; end if;
+end $$;
