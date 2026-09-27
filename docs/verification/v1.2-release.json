@@ -1,0 +1,98 @@
+{
+  "version": "1.2.0",
+  "saved_at_jst": "2026-09-27T23:42:28+09:00",
+  "repository": "Iam-2squared/Practice",
+  "implementation_pr": 21,
+  "implementation_commit": "d8e3829c7855ead5de8c34676f9bf97608cfe26f",
+  "verified_pr_head": "6ff001ac3b3dcf011c9b26c6e0bb71b1e3d10be0",
+  "previous_main": "78d1f79bb732d60da33b27c7dbb9bd251162c659",
+  "pr_ci": {
+    "run_id": 36326047463,
+    "run_number": 192,
+    "result": "success",
+    "node_tests": {"total": 141, "passed": 141, "failed": 0, "skipped": 0},
+    "syntax_checked_js_files": 30,
+    "build": "PASS",
+    "app_job": 108638943299,
+    "database_job": 108638943429,
+    "mobile_ui_job": 108638943442,
+    "database": "isolated PostgreSQL initialization and rollback assertions; not production writes",
+    "browser_suites": ["tests/browser_smoke.py", "tests/progression_browser.py", "tests/localization_browser.py"]
+  },
+  "implementation_main_ci": {
+    "run_id": 36326644215,
+    "run_number": 193,
+    "app": "success",
+    "database": "success",
+    "mobile-ui": "success",
+    "public-deployment": "success",
+    "public_deployment_job": 108640909065
+  },
+  "vercel": {
+    "commit": "d8e3829c7855ead5de8c34676f9bf97608cfe26f",
+    "status": "success",
+    "status_source": "GitHub Vercel deployment status",
+    "deployment_url": "https://vercel.com/iam-2squareds-projects/practice/CSkUbYhowRBf4TLMZCf7AtdT6p5j",
+    "management_connector": "Denied by team scope; no permission changes or bypass attempted"
+  },
+  "production_smoke": {
+    "result": "PASS",
+    "version": "1.2.0",
+    "languages": ["ja", "en"],
+    "currency": "JPY",
+    "rankingTimezone": "Asia/Tokyo",
+    "exactBuiltAssets": true,
+    "liveLocale": {"language": "en", "source": "country", "languages": ["ja", "en"]},
+    "checkedAt": "2026-09-27T14:40:34.597Z",
+    "markets": {"crypto": "enabled", "fx": "enabled"},
+    "storage": "supabase",
+    "note": "Anonymous production config/static/auth only. Country permutations and authenticated trading are tested using isolated local fixtures, not existing production accounts."
+  },
+  "localization_browser_result": {
+    "result": "PASS",
+    "environment": "isolated localhost HTTP; not production trading",
+    "countryCases": ["JP", "US", "GB", "unknown"],
+    "manualPreference": "PASS",
+    "blockedStorage": "PASS",
+    "networkFallback": "PASS",
+    "englishTrading": "PASS",
+    "crossLanguageWalletAndHistory": "UNCHANGED",
+    "lostReplyIdempotency": "PASS",
+    "userTextPreserved": "PASS",
+    "sharePayload": "stubbed navigator.share; English text verified",
+    "viewports": [320, 390, 768, 1280],
+    "browserErrors": []
+  },
+  "artifact": {
+    "id": 10933129082,
+    "name": "mobile-ui-evidence",
+    "run_id": 36326047463,
+    "head_sha": "6ff001ac3b3dcf011c9b26c6e0bb71b1e3d10be0",
+    "size_bytes": 2419133,
+    "sha256": "61b040cb741a01569a48671b112d697a57de47ce22f34e5c4e8730ccc5b8f460",
+    "expires_at": "2026-10-04T14:30:08Z",
+    "inspected_screenshots": ["en-landing-390.png", "en-challenges-390.png", "en-ranking-320.png", "en-fx-chart-390.png"]
+  },
+  "unchanged": [
+    "Existing production accounts, credentials, balances, positions and trade ledger",
+    "Comment bodies and usernames",
+    "Achievement IDs, earned state and selected badges",
+    "JPY initial funds and execution arithmetic",
+    "Signed quotes, authentication, CSRF and order idempotency",
+    "Shared market-data budgets and reference-price semantics",
+    "v1.0.0 tag"
+  ],
+  "not_performed": [
+    "Production database migration or existing-user data reset",
+    "Authenticated test trades in existing production accounts",
+    "Physical network testing in every country",
+    "Real-phone English native share-sheet validation",
+    "New paid service, billing change, advertising, provider account or API key",
+    "New release tag"
+  ],
+  "next_steps": [
+    "Record user-reported phone JA/EN switching evidence when provided",
+    "Use English product screens for future Practice-only SOLUYRA promotion; do not spend video credits without approval",
+    "Refresh docs/STATUS.md and verification records after meaningful changes"
+  ]
+}
