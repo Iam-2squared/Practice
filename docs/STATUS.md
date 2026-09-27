@@ -1,56 +1,79 @@
 # Practice — current handoff
 
-保存時刻: 2026-09-27 20:26 JST
+保存時刻: 2026-09-27 20:32 JST
 
-## Current checkpoint
+## 現在の本番状態
 
-PR #19 / `feature/challenges-weekly-achievements`: implementation complete, final documentation/CI gate before merge. Last confirmed production base is `d88a0619b560ec51e1d5b07faf015dd455341d7a`. Do not report v1.1 as deployed until the main CI and public deployment checks succeed.
+**Practice 1.1.0 の実装・merge・本番反映確認まで完了。**
 
-Runtime implementation was reviewed at `4ae6e7350a5081d76030140d5b962fb88c40b66b`. Browser verification was strengthened at `391a1d43126a4f6978702de5fb57e9aec579bae4`; later changes update documentation/privacy only. PR head changes after this checkpoint must have their own successful CI before merge.
+- 実装PR: #19 — beginner missions, weekly rankings and profile achievements
+- 本番実装commit: `6913c7ae375a036320d48803ef1c1a6ce6408394`
+- merge時のPR head: `a928c88690a08c0f8ac2ba907f4162ded2197c63`
+- 最終PR CI: `36315743395` 成功
+- 実装merge後のmain CI: `36315851847` (#143)、app / database / mobile-ui / public-deployment 全成功
+- Vercel: 同commitのデプロイ完了を確認
+- 本番smoke: 2026-09-27 20:29:40 JST、version 1.1.0 / Crypto enabled / FX enabled / storage supabase / PASS
+- 紹介ページ: https://practice-ashy-delta.vercel.app/
+- ゲーム: https://practice-ashy-delta.vercel.app/app.html
 
-## Implemented product rules
+このチェックポイントの後に追加されるdocs-only commitは、上記の実装内容を変更しません。最新main SHAはGitHubで確認してください。GitHub Release `v1.0.0` は元の `3ebee92e436a02e4d3d6d5cecb7507d2cb155dec` のまま保持し、移動していません。1.1.0のRelease/tag新規公開は未実施です。
 
-- Five tabs: 資産 / マーケット（仮想通貨・FX切替） / チャレンジ / ランキング / アカウント.
-- Ranking screen switches 週間ランキング / 総資産ランキング; general comments and sell-only counts remain.
-- Weekly score is current virtual total equity minus week-start equity, in JPY, not percentage or realized-only profit. The week starts Monday 00:00 Asia/Tokyo.
-- The full immutable trade ledger reconstructs week-start cash and quantities. A genuine history point at/before the cutoff values that inventory; the reference is frozen per symbol/week. Crypto uses hourly reference points and FX the prior business-day rate. This is not an exact exchange midnight tick.
-- Participants joining during the week use initial virtual JPY100,000. Missing baseline/current prices remain unknown and unranked. No invented historical price, current-price substitution or first-login baseline.
-- Six permanent achievements: +JPY1,000 / +JPY2,000 total-equity changes from initial cash; 3 Crypto executions / 3 FX executions; -JPY1,000 / -JPY2,000 experiences.
-- Buy and sell each count as one completed execution for the three-trade achievements. Ranking `売却 N回` remains sell-only. Failed/duplicate requests do not create extra trades.
-- Five beginner missions: virtual account / chart / first buy / first sell / portfolio review. No virtual-cash rewards or ads.
-- Profile allows up to three distinct earned titles, in selection order; ranking shows only selected titles next to the name, wrapping on narrow screens. Locked/duplicate/fourth titles are rejected server-side.
-- Existing recorded trade counts carry forward. Unobserved pre-feature profit/loss extremes are not fabricated. Money achievements are awarded on valid server observations and persist after reversal.
-- Privacy Policy and README describe the new data/visibility and current five-tab navigation. Detailed specification: `docs/CHALLENGES.md`.
+## 今回完成した機能
 
-## Verification completed
+**資産 / マーケット / チャレンジ / ランキング / アカウント** の5タブ。
 
-- PR CI Run `36314989922`, head `391a1d43126a4f6978702de5fb57e9aec579bae4`: app / database / mobile-ui all SUCCESS; public-deployment skipped as expected for a PR.
-- Node: 122/122 tests PASS, zero skipped. Syntax check: 25 JS files PASS. Build PASS.
-- HTTP Playwright: original trading regression plus progression flow PASS. All five missions completed, Crypto/FX achievements earned, two earned titles saved and preserved after reload, weekly/total switching and sell-count display checked.
-- Browser evidence issue corrected: assertions now target visible `#main` content and await loaded content rather than matching tiles retained inside a closed dialog. Screenshots now show actual challenge/ranking contents, not loading placeholders.
-- Verified 320 / 390 / 768 / 1280px layouts. Actual 390px challenge and 320px weekly screenshots inspected. No uncaught browser errors.
-- Three-selection UI limit additionally tested using an explicitly mocked earned-profile response; no forged awards were submitted. Server/API/SQL tests separately reject locked, duplicate and fourth selections.
-- Artifact `10929983502` (Run `36314989922`), SHA256 `f9a131923fc03ca7c46ba17b0d4ce9d858ff10e26891bcfd415ab07b7480763d`.
-- Supabase migration `20260927104402 practice_progression_weekly_v110` was already applied before resumption; confirmed, not re-applied.
-- Supabase rollback smoke PASS on 2026-09-27 20:17 JST: only random isolated fixtures, all changes rolled back. Verified thresholds, monotonic unlocks, three-title restriction, stale-wallet rejection, snapshots and deletion cascade.
-- New RPCs are security invoker with empty search_path; anon/authenticated EXECUTE denied, service_role EXECUTE allowed. Security Advisor at 20:21 JST shows only intentional RLS-enabled/no-browser-policy INFO entries.
-- At resumption audit: 22 accounts, 22 wallets, 87 Crypto/FX trades, 11 comments. No existing credentials, balances, trades or comments were changed by this work.
+- マーケット内で仮想通貨・FXを切替。既存の8銘柄、チャート、売買、コメントを維持。
+- チャレンジに初心者ミッション5つ: 仮想口座作成 / チャート確認 / 初購入 / 初売却 / 資産・損益確認。完了状況はサーバーの操作・取引記録で判定。
+- 実績6つ: ＋1,000円突破 / ＋2,000円突破 / 仮想通貨3売買 / FX3売買 / −1,000円の経験 / −2,000円の経験。
+- 金額実績は初期仮想10万円からの総資産の増減。売買実績は成立した購入・売却を各1回として数える。既存のランキング `売却 N回` は引き続き売却のみ。
+- 獲得済み実績は相場が反転しても保持。損失実績は経験の記録であり、損失を増やす目標ではない旨を表示。
+- アカウント → プロフィールで獲得済み称号を0〜3つ選択し、ランキングの名前の横に表示。小画面では折り返す。未獲得・重複・4つ以上はサーバーでも拒否。
+- ランキング内で週間 / 総資産を切替。総合コメント、売却回数、共有機能、認証、仮想口座削除も維持。
 
-## Safety / operational constraints
+## 週間ランキングの計算
 
-Only the additive `db/progression.sql` schema is needed for this release. Never replay old wallet-initialization migrations on production. No new paid plan, external account, API key, cron service, ads or secret change.
-Weekly references reuse the existing shared history cache and the same CoinGecko 500 history-calls-per-UTC-month guard, not an additional allowance. Missing data does not disable the independent current-quote/order path.
-Vercel management connector remains team-scope 403. Use existing GitHub deployment integration and public runtime checks; do not alter credentials or billing to bypass it. Temporary source-integration workflow is removed.
+**週間増減額 = 現在の総資産 − 週初の総資産**。率や確定損益だけではなく、円の増減額で比較します。
 
-## Next actions
+週の境界は日本時間の月曜0時。全売買履歴から境界時点の現金・保有数量を復元し、その時点以前の実際の履歴価格で評価します。基準価格は銘柄・週ごとに一度保存し、全員に同じ価格を使います。初回ログイン時の価格を基準にする方式ではありません。
 
-1. Confirm final PR head CI and diff, mark PR #19 ready, then merge with exact expected head SHA.
-2. Verify main app/database/mobile-ui/public-deployment checks and Vercel deployment for that merge.
-3. Save the exact merge and production evidence in this handoff and PR notes. Anonymous config/static checks are not authenticated production trading E2E.
-4. User can then refresh the app and check Challenges, ranking mode switch and Account → Profile. Actual future Monday rollover and existing-user phone verification remain separate from fixture tests.
+Cryptoは約1時間粒度の履歴、FXは直前営業日の日次参考値です。取引所の週境界ちょうどの実行価格を保証するものではありません。週内参加者は初期仮想10万円から比較します。基準額または現在価格が取得不能なら損益・順位を「—」とし、架空の0円や現在価格で埋めません。
 
-## Continuing policy
+既存の成立済み売買回数は引き継ぎます。実績導入前に観測・保存されていない含み損益の最高値・最低値は推測しません。金額実績は有効なサーバー評価で条件を確認できた時点から獲得します。
 
-Save JST time, checked commit, CI/deployment, limitations and next steps here after every meaningful milestone. Preserve existing user data and the original v1.0.0 tag. Ads remain deferred and require separate step-by-step user confirmation. External directory/account setup is on hold; prioritize self-contained changes. Do not silently introduce new growth features beyond approved scope.
+詳しい仕様・算式・制限: `docs/CHALLENGES.md`。
 
-Previous release/history: `docs/verification/status-before-1.1.md`.
+## 検証済み
+
+- Node 122/122テスト成功、スキップ0。構文確認25 JSファイル成功、build成功。
+- JST週境界・年越し・新規参加・全売却後の週初保有復元・負の週損益・不明基準価格・固定基準・実績の維持・称号の認可を検証。
+- PostgreSQLの追加schema / 通常smoke / progression smokeがCI成功。
+- 実HTTP Playwrightで従来の売買回帰と新機能を検証。ミッション全5個完了、Crypto/FX実績の獲得、2称号の保存と再読込維持、ランキング高速切替、売却1回表示を確認。
+- 320 / 390 / 768 / 1280pxを検証。未読込画面や閉じたdialog内の残存要素を誤って証拠にしないよう、表示中の #main に限定して待機・確認するテストへ修正済み。
+- 正常読込後の390pxチャレンジ画面と320px週間画面を画像でも確認。uncaught browser errorなし。
+- UIの3つ選択上限は、明示的なモック獲得データで別途確認。偽の獲得データはサーバーに送信していない。API/SQL側でも未獲得・重複・4つ以上を拒否。
+- UI証拠: PR CI `36314989922` のartifact `10929983502`。SHA256 `f9a131923fc03ca7c46ba17b0d4ce9d858ff10e26891bcfd415ab07b7480763d`。同テストが最終PR CIとmain CIでも成功。
+- 実装・データ・本番確認の記録: `docs/verification/v1.1-release.json` と PR #19 の完了コメント。
+
+## データ保護・追加料金なしの変更範囲
+
+Supabase migration `20260927104402 practice_progression_weekly_v110` は再開前に適用済みと確認し、二重適用していません。追加は進捗と週初参考価格のテーブル/RPCです。既存の認証情報、残高、保有数量、取引履歴、コメントを削除・初期化していません。
+
+再開時のDB集計は22仮想口座・22ウォレット・87売買・11コメント。ユーザー利用中のため件数は増え得ます。検証では既存ユーザーを売買させず、SQLのランダムな隔離fixtureをBEGIN〜ROLLBACK内のみで使用しました。閾値、実績維持、称号上限、古いwallet versionの拒否、連鎖削除、RPCスナップショットの検証に成功し、fixture変更は全てロールバック済み。
+
+新RPCはsecurity invoker / 空search_path / service_role限定。ブラウザロールの実行・テーブル権限を閉じ、RLSを維持。Security Advisorは意図した「RLS有効・browser向けpolicyなし」のINFOのみでした。
+
+週間基準価格は既存の履歴APIと共有キャッシュを再利用し、CoinGecko履歴月500回の既存DBガード内で取得します。追加の500回枠を作っていません。新しいAPIキー・広告・有料契約・cron・外部サービス登録・秘密鍵変更はありません。
+
+## 確認範囲と次の方針
+
+本番確認は配信version・静的ファイル・市場有効設定・認証境界のチェックです。既存ユーザーのスマホで新機能を全て操作したことや、次の実際の月曜の切替を観測したことまでは含みません。詳細操作と週境界はfixture/CIで検証しました。
+
+次はユーザーがアプリを再読み込みし、チャレンジ → ランキング切替 → アカウントのプロフィールを実機で確認する段階です。不具合があれば再現テストを追加して修正し、新規機能を無断で広げません。今回の実装に未保存の作業はありません。
+
+Vercel管理コネクタはチームscope403のままですが、既存GitHub連携のデプロイと本番smokeは成功しています。権限回避のために秘密鍵・課金設定を変更しないでください。
+
+## 継続ルール
+
+意味のある変更ごとにこのファイルへJST保存時刻・確認commit・CI/本番結果・未確認事項・次の方針を保存します。外部掲載/アカウント登録は保留。広告は利用が育ってから別途、本人確認付きの段階的作業とし勝手に開始しません。既存ユーザーデータとv1.0.0タグを保護します。
+
+以前の履歴: `docs/verification/status-before-1.1.md`。
