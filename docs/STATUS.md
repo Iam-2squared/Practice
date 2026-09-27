@@ -84,3 +84,66 @@ Advertising is intentionally deferred until the product has meaningful daily usa
 ## Release decision
 
 The implemented v1 feature set and public-release controls satisfy the current project completion gate. Remaining items above are explicitly deferred product work, not blockers for the free, ad-free paper-trading v1 release.
+
+
+---
+
+# Current development handoff — 2026-09-27 18:53 JST
+
+Current production main: `e388e384029dbbc325462335bed302e599d8c9b0`
+Production: https://practice-ashy-delta.vercel.app/
+GitHub release: `v1.0.0` remains the original public-release tag; current main contains post-v1 improvements.
+
+## Changes after the v1 freeze
+
+- Community comments shipped:
+  - General room from Ranking.
+  - Dedicated rooms for BTC / ETH / SOL / XRP / USDJPY / EURJPY / GBPJPY / AUDJPY.
+  - Logged-in username, timestamp, 280-character limit, escaped rendering and anti-spam limits.
+  - Additive server-only `practice_comments` table with RLS and account-delete cascade.
+- Username policy changed from 20 to 15 characters in API, UI and database.
+- One existing username longer than 15 characters was reset to `名前無し` before the new constraint was applied; that user subsequently renamed the account through the product.
+- The exact production account username `S.K.` was deleted by explicit owner request. The distinct `S.K` account was retained.
+- Leaderboard now displays `売却 N回` for every account. This counts SELL executions only, not total buy+sell trades. Accounts with no sales display `売却 0回`.
+- Static app CSS/JS URLs now carry an asset version so mobile browsers do not remain on a stale pre-deployment UI.
+- Latest observed production screenshot confirms sell-count rendering on mobile.
+
+Relevant merged work:
+- PR #13 community comments → `26e063e3f9d969e0ad5a72408e5bdda928bd1543`
+- PR #14 username cap + leaderboard sell counts → `a4f9dc17020cee907e797b685c2efc2cb705bf2e`
+- PR #15 static cache invalidation → `e388e384029dbbc325462335bed302e599d8c9b0`
+- Final CI after PR #15: app / database / mobile-ui / public-deployment SUCCESS; Vercel production SUCCESS.
+
+## Distribution status
+
+- Practice is publicly usable and remains free/ad-free.
+- Vercel Web Analytics is enabled.
+- Tsukutta listing is live with five promotional screenshots, category Game, free pricing and direct browser link.
+- Next planned external distribution target: izanami, then other suitable free indie-product directories.
+- Advertising remains deferred until meaningful daily usage; prior product decision was to reconsider around 100 daily visitors rather than add ads immediately.
+
+## Product direction / next priorities
+
+Preserve the current working product and user data. Do not introduce paid services, destructive resets or real-money trading without explicit approval.
+
+Growth-oriented candidates to evaluate next:
+1. Daily/weekly challenges using the existing virtual portfolio (e.g. best weekly return) with clear reset/eligibility rules.
+2. Shareable result cards for ranking, portfolio return or a completed challenge, designed for LINE / Instagram Stories.
+3. Lightweight onboarding mission: create virtual account → inspect USD/JPY or BTC chart → make first virtual trade → view ranking/comments.
+4. Retention mechanics that do not require real money: streaks/badges or learning achievements.
+5. Better discovery/SEO and external directory listings.
+6. Continue mobile-first design; early Vercel Analytics showed a strong mobile majority.
+7. Consider additional market-data coverage only when licensing/API limits and cost permit; Japanese equities remain deferred until a properly licensed data source is financially sustainable.
+
+## Operating rule for future work
+
+After each meaningful implementation/merge/release milestone, update this `docs/STATUS.md` with:
+- JST save time,
+- current production/main commit,
+- what changed,
+- CI/deployment result,
+- any production data operation,
+- current blockers/deferred items,
+- next recommended work.
+
+This file is the canonical handoff if chat context is lost.
