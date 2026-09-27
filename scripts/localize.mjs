@@ -4,7 +4,8 @@ import {createHash} from 'node:crypto';
 import {EN} from '../locales/en.mjs';
 import {EN_PAGES} from '../locales/en-pages.mjs';
 import {EN_CONTEXT,englishTemplates} from '../locales/en-context.mjs';
-const dictionary={...EN,...EN_PAGES,...EN_CONTEXT};
+import {DISPLAY_LABELS} from '../lib/locale.mjs';
+const dictionary={...EN,...EN_PAGES,...DISPLAY_LABELS,...EN_CONTEXT};
 const escapeRegExp=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const pattern=new RegExp(Object.keys(dictionary).sort((a,b)=>b.length-a.length).map(escapeRegExp).join('|'),'gu');
 const cjk=/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
@@ -18,6 +19,10 @@ const pages=['index.html','app.html','terms.html','privacy.html','data.html'];
 const names={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',USDJPY:'US Dollar / JPY',EURJPY:'Euro / JPY',GBPJPY:'British Pound / JPY',AUDJPY:'Australian Dollar / JPY'};
 const privacy='<h2>表示言語</h2><p>初回表示はVercelがアクセス元IPから推定する国情報を使い、日本は日本語、それ以外は英語を選びます。国情報が不明な場合はブラウザ言語を使います。GPS・精密な位置情報の許可は求めず、言語判定のために国情報をデータベースへ追加保存しません。手動で選んだ言語は、このブラウザのローカルストレージに保存します。VPN等により推定国が実際の所在地と異なる場合は手動で変更できます。</p>';
 export async function buildSite(root=resolve(import.meta.dirname,'..')){
+ // Report all missing static copy in one pass, before replacing a prior build.
+ const issues=[];
+ for(const name of [...pages,'app.js','progress-ui.js']){const source=await readFile(resolve(root,'public',name),'utf8');try{translateSource(englishTemplates(source)+(name==='privacy.html'?privacy:''),{js:name.endsWith('.js'),name});}catch(e){issues.push(e.message);}}
+ if(issues.length)throw Error(issues.join('\n\n'));
  const out=resolve(root,'dist');await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp(resolve(root,'public'),out,{recursive:true});
  const write=(path,text)=>writeFile(resolve(out,path),text),bundleNames={};
  const languageSource=await readFile(resolve(root,'public/site-language.js'),'utf8');
