@@ -71,9 +71,11 @@ jobs:
             if curl -fsS 'http://localhost:3000/api/index?action=config' >/dev/null; then exit 0; fi
             sleep 1
           done
+          cat /tmp/practice-dev.log
           exit 1
       - run: python tests/browser_smoke.py
       - run: python tests/progression_browser.py
+      - run: python tests/localization_browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -90,5 +92,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify config and public assets, no user writes
+      - name: Verify bilingual public assets and auth, no user writes
         run: node scripts/public-smoke.mjs

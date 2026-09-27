@@ -26,7 +26,7 @@ with sync_playwright() as p:
     else:
         landing=page.goto('http://localhost:3000',wait_until='networkidle');assert landing.status==200
         expect(page.get_by_role('heading',name='10万円から、 トレードを遊んで学ぼう。')).to_be_visible()
-        expect(page.get_by_role('link',name='無料ではじめる')).to_have_attribute('href','/app.html')
+        expect(page.get_by_role('link',name='無料ではじめる')).to_have_attribute('href','/ja/app.html')
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
         r=page.goto('http://localhost:3000/app.html',wait_until='networkidle');assert r.status==200
         assert "script-src 'self'" in r.headers['content-security-policy']
