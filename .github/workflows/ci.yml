@@ -48,9 +48,10 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f db/price_charts.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/comments.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/ranking_activity.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/progression.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/verify.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/smoke.sql
-
+      - run: psql -v ON_ERROR_STOP=1 -f db/progression_smoke.sql
   mobile-ui:
     runs-on: ubuntu-latest
     steps:
@@ -72,12 +73,13 @@ jobs:
           done
           exit 1
       - run: python tests/browser_smoke.py
+      - run: python tests/progression_browser.py
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mobile-ui-evidence
           path: test-results/
           retention-days: 7
-
   public-deployment:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [app, database, mobile-ui]
@@ -88,5 +90,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify config only, no user writes
+      - name: Verify config and public assets, no user writes
         run: node scripts/public-smoke.mjs

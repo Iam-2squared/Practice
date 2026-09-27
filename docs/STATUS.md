@@ -1,164 +1,56 @@
-# Practice v1 — PUBLIC RELEASE FREEZE
+# Practice — current handoff
 
-保存時刻: 2026-09-27 01:18 JST
+保存時刻: 2026-09-27 20:26 JST
 
-Freeze candidate base: `aa8dfe8872647df833d6303cedcda742d8c824b7`
+## Current checkpoint
 
-Production: https://practice-ashy-delta.vercel.app/
+PR #19 / `feature/challenges-weekly-achievements`: implementation complete, final documentation/CI gate before merge. Last confirmed production base is `d88a0619b560ec51e1d5b07faf015dd455341d7a`. Do not report v1.1 as deployed until the main CI and public deployment checks succeed.
 
-## v1 scope
+Runtime implementation was reviewed at `4ae6e7350a5081d76030140d5b962fb88c40b66b`. Browser verification was strengthened at `391a1d43126a4f6978702de5fb57e9aec579bae4`; later changes update documentation/privacy only. PR head changes after this checkpoint must have their own successful CI before merge.
 
-Practice is a free paper-trading game using virtual JPY only. It performs no real orders, deposits, withdrawals, transfers, leverage or short selling.
+## Implemented product rules
 
-Public entry:
-- Landing page: `/`
-- Trading app: `/app.html`
-- Explicit “本物のお金は使いません / すべて仮想資金での練習です” onboarding.
-- User-facing account wording is “仮想口座”.
-- Terms, Privacy Policy, market-data explanation and provider attribution are public.
+- Five tabs: 資産 / マーケット（仮想通貨・FX切替） / チャレンジ / ランキング / アカウント.
+- Ranking screen switches 週間ランキング / 総資産ランキング; general comments and sell-only counts remain.
+- Weekly score is current virtual total equity minus week-start equity, in JPY, not percentage or realized-only profit. The week starts Monday 00:00 Asia/Tokyo.
+- The full immutable trade ledger reconstructs week-start cash and quantities. A genuine history point at/before the cutoff values that inventory; the reference is frozen per symbol/week. Crypto uses hourly reference points and FX the prior business-day rate. This is not an exact exchange midnight tick.
+- Participants joining during the week use initial virtual JPY100,000. Missing baseline/current prices remain unknown and unranked. No invented historical price, current-price substitution or first-login baseline.
+- Six permanent achievements: +JPY1,000 / +JPY2,000 total-equity changes from initial cash; 3 Crypto executions / 3 FX executions; -JPY1,000 / -JPY2,000 experiences.
+- Buy and sell each count as one completed execution for the three-trade achievements. Ranking `売却 N回` remains sell-only. Failed/duplicate requests do not create extra trades.
+- Five beginner missions: virtual account / chart / first buy / first sell / portfolio review. No virtual-cash rewards or ads.
+- Profile allows up to three distinct earned titles, in selection order; ranking shows only selected titles next to the name, wrapping on narrow screens. Locked/duplicate/fourth titles are rejected server-side.
+- Existing recorded trade counts carry forward. Unobserved pre-feature profit/loss extremes are not fabricated. Money achievements are awarded on valid server observations and persist after reversal.
+- Privacy Policy and README describe the new data/visibility and current five-tab navigation. Detailed specification: `docs/CHALLENGES.md`.
 
-Markets:
-- Crypto: BTC / ETH / SOL / XRP via CoinGecko Demo.
-- FX: USD/JPY / EUR/JPY / GBP/JPY / AUD/JPY via Frankfurter / ECB reference data.
-- Crypto charts: 24H / 7D / 30D / 90D / 1Y.
-- FX charts: 7D / 1M / 3M / 1Y / 5Y.
-- Chart history is reference-only and never becomes the signed execution quote.
+## Verification completed
 
-Game:
-- Initial virtual cash: JPY 100,000.
-- Cash, valuation, unrealized/realized P/L, per-position percentage return.
-- Buy/sell history, username, login/logout, leaderboard and virtual-account deletion.
-- Password minimum remains six characters by product choice; reuse of important passwords is discouraged and there is no email recovery.
+- PR CI Run `36314989922`, head `391a1d43126a4f6978702de5fb57e9aec579bae4`: app / database / mobile-ui all SUCCESS; public-deployment skipped as expected for a PR.
+- Node: 122/122 tests PASS, zero skipped. Syntax check: 25 JS files PASS. Build PASS.
+- HTTP Playwright: original trading regression plus progression flow PASS. All five missions completed, Crypto/FX achievements earned, two earned titles saved and preserved after reload, weekly/total switching and sell-count display checked.
+- Browser evidence issue corrected: assertions now target visible `#main` content and await loaded content rather than matching tiles retained inside a closed dialog. Screenshots now show actual challenge/ranking contents, not loading placeholders.
+- Verified 320 / 390 / 768 / 1280px layouts. Actual 390px challenge and 320px weekly screenshots inspected. No uncaught browser errors.
+- Three-selection UI limit additionally tested using an explicitly mocked earned-profile response; no forged awards were submitted. Server/API/SQL tests separately reject locked, duplicate and fourth selections.
+- Artifact `10929983502` (Run `36314989922`), SHA256 `f9a131923fc03ca7c46ba17b0d4ce9d858ff10e26891bcfd415ab07b7480763d`.
+- Supabase migration `20260927104402 practice_progression_weekly_v110` was already applied before resumption; confirmed, not re-applied.
+- Supabase rollback smoke PASS on 2026-09-27 20:17 JST: only random isolated fixtures, all changes rolled back. Verified thresholds, monotonic unlocks, three-title restriction, stale-wallet rejection, snapshots and deletion cascade.
+- New RPCs are security invoker with empty search_path; anon/authenticated EXECUTE denied, service_role EXECUTE allowed. Security Advisor at 20:21 JST shows only intentional RLS-enabled/no-browser-policy INFO entries.
+- At resumption audit: 22 accounts, 22 wallets, 87 Crypto/FX trades, 11 comments. No existing credentials, balances, trades or comments were changed by this work.
 
-## Data and free-tier controls
+## Safety / operational constraints
 
-- CoinGecko current quotes: shared four-symbol cache, maximum modelled 8,928 provider calls in a 31-day month.
-- Crypto chart provider misses: DB hard limit 500 per UTC month.
-- Modelled application maximum: 9,428 CoinGecko calls/month, leaving 572 calls of the 10,000 Demo allowance as buffer.
-- Chart cache: Crypto 24H 1h; 7D–90D 6h; 1Y 24h. FX history 24h.
-- No all-period prefetch, chart polling or infinite retry.
-- FX history keeps actual business dates and does not invent weekend/holiday values.
-- Provider attribution is shown publicly: Powered by CoinGecko API; Frankfurter / ECB reference rates.
+Only the additive `db/progression.sql` schema is needed for this release. Never replay old wallet-initialization migrations on production. No new paid plan, external account, API key, cron service, ads or secret change.
+Weekly references reuse the existing shared history cache and the same CoinGecko 500 history-calls-per-UTC-month guard, not an additional allowance. Missing data does not disable the independent current-quote/order path.
+Vercel management connector remains team-scope 403. Use existing GitHub deployment integration and public runtime checks; do not alter credentials or billing to bypass it. Temporary source-integration workflow is removed.
 
-## Release evidence
+## Next actions
 
-Chart release:
-- PR #5 merged: `dfba3386ba839a61e91fa8712ae3527a22256ffa`.
-- FX holiday-boundary fix PR #6 merged: `76f90cd50330e75c7061c069f7b64622814342be`.
-- Production real-data verification succeeded for all eight instruments: Crypto 24H returned 288–289 approximately five-minute points; each FX 7D query returned five business-day points.
-- No production trades were made for chart verification; the isolated temporary verification account was deleted.
+1. Confirm final PR head CI and diff, mark PR #19 ready, then merge with exact expected head SHA.
+2. Verify main app/database/mobile-ui/public-deployment checks and Vercel deployment for that merge.
+3. Save the exact merge and production evidence in this handoff and PR notes. Anonymous config/static checks are not authenticated production trading E2E.
+4. User can then refresh the app and check Challenges, ranking mode switch and Account → Profile. Actual future Monday rollover and existing-user phone verification remain separate from fixture tests.
 
-Public-readiness:
-- PR #7 legal/privacy/attribution: `752cfb5eecbdfa8edc0fa2b46dbb160ff7d84e97`.
-- PR #8 public landing: `825daa3d4806f2ede969ff8981c8ee4042cae047`.
-- PR #9 no-real-money emphasis: `769ffb970caf75344643a80acce86185037ea57b`.
-- PR #10 virtual-account wording: `e59397a319cd8023e26da0d0c0207e17fa06b8a0`.
-- PR #11 Vercel Web Analytics: `aa8dfe8872647df833d6303cedcda742d8c824b7`.
-- Main CI Run `36254501377`: app / database / mobile-ui / public-deployment all SUCCESS.
-- Vercel production status for the same commit: SUCCESS.
-- Vercel Web Analytics Hobby is enabled; user-visible dashboard confirmed collection (4 visitors / 9 page views at the first check). No paid Analytics plan or custom events were enabled.
+## Continuing policy
 
-## Security / data gate
+Save JST time, checked commit, CI/deployment, limitations and next steps here after every meaningful milestone. Preserve existing user data and the original v1.0.0 tag. Ads remain deferred and require separate step-by-step user confirmation. External directory/account setup is on hold; prioritize self-contained changes. Do not silently introduce new growth features beyond approved scope.
 
-Final Supabase audit on 2026-09-27 JST:
-- Nine `practice_*` tables have RLS enabled.
-- `anon` and `authenticated` have no SELECT privilege on all nine.
-- Security advisor reports INFO only for “RLS enabled, no policy”; this is intentional for server-only service-role tables.
-- Existing user data was not reset or deleted by release preparation.
-- At final audit the database contained 3 accounts, 3 wallets and 18 Crypto/FX asset-trade records. These are production records and are not release fixtures.
-- Secrets remain server-side; no API key or Supabase secret is intentionally shipped to browser code.
-- Signed per-account execution quotes, expiry, CSRF/origin controls, secure session cookies, idempotency and integer money/quantity rules remain in place.
-
-## Deferred after v1
-
-Not part of this release:
-- Advertising / AdSense.
-- Rewarded ads or virtual-cash rewards.
-- Paid Vercel services.
-- Custom domain.
-- Real-money trading or broker/exchange integration.
-- Custom analytics events.
-
-Advertising is intentionally deferred until the product has meaningful daily usage; the current product decision is to reconsider at roughly 100 daily visitors. Any advertising/reward implementation requires a separate review of provider policy, hosting plan, ranking fairness and server-side reward verification.
-
-## Release decision
-
-The implemented v1 feature set and public-release controls satisfy the current project completion gate. Remaining items above are explicitly deferred product work, not blockers for the free, ad-free paper-trading v1 release.
-
-
----
-
-# Current development handoff — 2026-09-27 18:53 JST
-
-Current production main: `e388e384029dbbc325462335bed302e599d8c9b0`
-Production: https://practice-ashy-delta.vercel.app/
-GitHub release: `v1.0.0` remains the original public-release tag; current main contains post-v1 improvements.
-
-## Changes after the v1 freeze
-
-- Community comments shipped:
-  - General room from Ranking.
-  - Dedicated rooms for BTC / ETH / SOL / XRP / USDJPY / EURJPY / GBPJPY / AUDJPY.
-  - Logged-in username, timestamp, 280-character limit, escaped rendering and anti-spam limits.
-  - Additive server-only `practice_comments` table with RLS and account-delete cascade.
-- Username policy changed from 20 to 15 characters in API, UI and database.
-- One existing username longer than 15 characters was reset to `名前無し` before the new constraint was applied; that user subsequently renamed the account through the product.
-- The exact production account username `S.K.` was deleted by explicit owner request. The distinct `S.K` account was retained.
-- Leaderboard now displays `売却 N回` for every account. This counts SELL executions only, not total buy+sell trades. Accounts with no sales display `売却 0回`.
-- Static app CSS/JS URLs now carry an asset version so mobile browsers do not remain on a stale pre-deployment UI.
-- Latest observed production screenshot confirms sell-count rendering on mobile.
-
-Relevant merged work:
-- PR #13 community comments → `26e063e3f9d969e0ad5a72408e5bdda928bd1543`
-- PR #14 username cap + leaderboard sell counts → `a4f9dc17020cee907e797b685c2efc2cb705bf2e`
-- PR #15 static cache invalidation → `e388e384029dbbc325462335bed302e599d8c9b0`
-- Final CI after PR #15: app / database / mobile-ui / public-deployment SUCCESS; Vercel production SUCCESS.
-
-## Distribution status
-
-- Practice is publicly usable and remains free/ad-free.
-- Vercel Web Analytics is enabled.
-- Tsukutta listing is live with five promotional screenshots, category Game, free pricing and direct browser link.
-- Next planned external distribution target: izanami, then other suitable free indie-product directories.
-- Advertising remains deferred until meaningful daily usage; prior product decision was to reconsider around 100 daily visitors rather than add ads immediately.
-
-## Product direction / next priorities
-
-Preserve the current working product and user data. Do not introduce paid services, destructive resets or real-money trading without explicit approval.
-
-Growth-oriented candidates to evaluate next:
-1. Daily/weekly challenges using the existing virtual portfolio (e.g. best weekly return) with clear reset/eligibility rules.
-2. Shareable result cards for ranking, portfolio return or a completed challenge, designed for LINE / Instagram Stories.
-3. Lightweight onboarding mission: create virtual account → inspect USD/JPY or BTC chart → make first virtual trade → view ranking/comments.
-4. Retention mechanics that do not require real money: streaks/badges or learning achievements.
-5. Better discovery/SEO and external directory listings.
-6. Continue mobile-first design; early Vercel Analytics showed a strong mobile majority.
-7. Consider additional market-data coverage only when licensing/API limits and cost permit; Japanese equities remain deferred until a properly licensed data source is financially sustainable.
-
-## Operating rule for future work
-
-After each meaningful implementation/merge/release milestone, update this `docs/STATUS.md` with:
-- JST save time,
-- current production/main commit,
-- what changed,
-- CI/deployment result,
-- any production data operation,
-- current blockers/deferred items,
-- next recommended work.
-
-This file is the canonical handoff if chat context is lost.
-
-
-## Milestone — 2026-09-27 19:03 JST
-
-Production main: `32656ed8b7798db0c9d5aaba6784bd4fefd0e844`
-
-- Added a no-provider, no-paid-service growth feature: portfolio result sharing from the Assets screen.
-- Share payload includes current virtual total assets, percentage return from initial JPY 100,000, a clear paper-trading/no-real-money description, and the public Practice URL.
-- Uses the browser/device native share sheet when available; clipboard fallback is used otherwise.
-- No database, market-data provider, quote, order, balance or account semantics changed.
-- PR #17 merged.
-- Final main CI Run `36311091308`: app / database / mobile-ui / public-deployment all SUCCESS.
-- Vercel production status: SUCCESS.
-
-Next growth work should continue to prefer features implementable entirely inside Practice while external directory/account setup is inconvenient. Candidate order: onboarding missions, weekly ranking/challenges, lightweight achievements, then further distribution work when convenient.
+Previous release/history: `docs/verification/status-before-1.1.md`.
