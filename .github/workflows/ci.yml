@@ -49,9 +49,21 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f db/comments.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/ranking_activity.sql
       - run: psql -v ON_ERROR_STOP=1 -f db/progression.sql
-      - run: psql -v ON_ERROR_STOP=1 -f db/verify.sql
-      - run: psql -v ON_ERROR_STOP=1 -f db/smoke.sql
-      - run: psql -v ON_ERROR_STOP=1 -f db/progression_smoke.sql
+      - name: Original schema regression before upgrade
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/verify.sql
+          psql -v ON_ERROR_STOP=1 -f db/smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/progression_smoke.sql
+      - name: Upgrade and verify repeatable additive migration
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/market_expansion.sql
+          psql -v ON_ERROR_STOP=1 -f db/market_expansion.sql
+      - name: Original regression and expanded catalog integration
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/verify.sql
+          psql -v ON_ERROR_STOP=1 -f db/smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/progression_smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/market_expansion_smoke.sql
   mobile-ui:
     runs-on: ubuntu-latest
     steps:
@@ -76,6 +88,7 @@ jobs:
       - run: python tests/browser_smoke.py
       - run: python tests/progression_browser.py
       - run: python tests/localization_browser.py
+      - run: python tests/market_favorites_browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

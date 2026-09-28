@@ -57,8 +57,8 @@ with sync_playwright() as p:
         page.locator('#practice-language').select_option(language)
         expect(page).to_have_url(re.compile('/'+language+'/app.html'))
         expect(page.locator('#main .history-row').first).to_be_visible(timeout=15000)
-    # English names are searchable without changing the stored asset identifiers.
-    page.locator('[data-tab=market]').click();page.locator('[data-market=fx]').click();page.locator('#search').fill('Dollar');expect(page.locator('#search-results .stock-row')).to_have_count(2)
+    # English names are searchable without changing stored asset identifiers.
+    page.locator('[data-tab=market]').click();page.locator('[data-market=fx]').click();page.locator('#search').fill('Dollar');expect(page.locator('#search-results .stock-row')).to_have_count(4)
     open_market('fx','USDJPY');page.locator('#quantity').fill('2')
     page.screenshot(path=str(OUT/'en-fx-chart-390.png'),full_page=True)
     page.evaluate("const s=document.querySelector('#practice-language');s.value='ja';s.dispatchEvent(new Event('change',{bubbles:true}));")
@@ -95,7 +95,7 @@ with sync_playwright() as p:
         page.set_viewport_size({'width':width,'height':900})
         for tab in ['market','challenges','ranking','history']:
             page.locator('[data-tab='+tab+']').click()
-            if tab=='market':expect(page.locator('#main .stock-row')).to_have_count(4)
+            if tab=='market':expect(page.locator('#main .stock-row')).to_have_count(10)
             elif tab=='challenges':expect(page.locator('#main .achievement-tile')).to_have_count(6)
             elif tab=='ranking':expect(page.locator('#main .rank-row.me')).to_be_visible()
             else:expect(page.locator('#main .history-row').first).to_be_visible()
