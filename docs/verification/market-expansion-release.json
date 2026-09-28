@@ -1,0 +1,62 @@
+{
+  "savedAt": "2026-09-28T13:48:00+09:00",
+  "status": "IMPLEMENTED_MIGRATED_MERGED_PRODUCTION_VERIFIED",
+  "repo": "Iam-2squared/Practice",
+  "version": "1.2.0",
+  "pr": 23,
+  "baseCommit": "b081c38720e741d98c014ee436eec620f0d8a8c1",
+  "verifiedPrHead": "5bb91b029602b1b352f96f6561d347fb37b7f546",
+  "productionImplementationCommit": "68d5377e2a278df7586165d3ac961997566d33e1",
+  "counts": {"before": {"crypto": 4, "fx": 4}, "after": {"crypto": 10, "fx": 7}},
+  "crypto": ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "AVAX", "LINK", "LTC"],
+  "fx": ["USDJPY", "EURJPY", "GBPJPY", "AUDJPY", "CADJPY", "CHFJPY", "NZDJPY"],
+  "ci": {
+    "pr": {"runId": 36378565745, "runNumber": 201, "app": "success", "database": "success", "mobile-ui": "success", "public-deployment": "intentionally-main-only"},
+    "main": {"runId": 36379051037, "runNumber": 202, "app": "success", "database": "success", "mobile-ui": "success", "public-deployment": "success"},
+    "node": {"tests": 176, "pass": 176, "fail": 0, "skipped": 0, "cancelled": 0, "syntaxFiles": 34},
+    "database": "original regression before upgrade; expansion migration applied twice; original and 17-asset integration regression after upgrade; all PASS; isolated Postgres only"
+  },
+  "browser": {
+    "environment": "isolated localhost real HTTP/Cookie API with deterministic provider fixtures",
+    "languages": ["ja", "en"],
+    "favoritesViewports": [320, 390, 768, 1280],
+    "existingRegressionViewports": [320, 360, 390, 430, 768, 1280],
+    "favorites": {"stablePartition": "PASS", "searchAndMarketIsolation": "PASS", "keyboardAndFocus": "PASS", "reloadAndLanguagePersistence": "PASS", "crossTabAndClear": "PASS", "blockedAndCorruptStorage": "PASS", "quoteTradeChartRequestsFromStars": 0},
+    "newInstrumentRoundTripsPerLanguage": 2,
+    "uncaughtErrors": [],
+    "artifactId": 10951397999,
+    "artifactSha256": "5e6911b854d2dac11e8834abecd50c20a269a902f225477181d13db616b7ffa0",
+    "artifactDownloadedAndDigestChecked": true,
+    "visuallyInspected": ["favorites-ja-crypto-390.png", "favorites-en-fx-320.png"],
+    "userPhysicalDeviceReport": "not yet reported for this release"
+  },
+  "databaseProduction": {
+    "migration": "market_expansion_favorites_20260928",
+    "path": "db/market_expansion.sql",
+    "gitBlob": "5ea9fb8ba2c6f08b860b26767c300b8f2b87eaec",
+    "applyResult": "success",
+    "structuralCheckAt": "2026-09-28T04:43:59.252293Z",
+    "catalogCount": 17,
+    "newChartKeysAccepted": true,
+    "equitiesAndMalformedKeysRejected": true,
+    "checkedRlsTables": ["practice_accounts", "practice_wallets", "practice_asset_trades", "practice_quote_cache", "practice_chart_cache", "practice_comments", "practice_week_prices", "practice_provider_budgets"],
+    "allCheckedTablesRlsEnabled": true,
+    "allCheckedTablesAnonAuthenticatedSelect": false,
+    "allCheckedTablesServiceRoleSelect": true,
+    "newFunctionPublicExecute": false,
+    "productionTestAccountsTradesCommentsCreated": false,
+    "userDataOrBudgetResetExecuted": false,
+    "beforeAfterUserLedgerFingerprintAudit": "not performed"
+  },
+  "production": {
+    "origin": "https://practice-ashy-delta.vercel.app",
+    "vercelCommitStatus": "success",
+    "vercelDeployment": "Cv6jqUQWvdf38hmZH6RkBRdU7Kki",
+    "smokeJobId": 108791108071,
+    "smokeResult": {"result": "PASS", "version": "1.2.0", "languages": ["ja", "en"], "marketCounts": {"crypto": 10, "fx": 7}, "favoritesAssets": true, "currency": "JPY", "rankingTimezone": "Asia/Tokyo", "exactBuiltAssets": true, "liveLocale": {"language": "en", "source": "country", "languages": ["ja", "en"]}, "checkedAt": "2026-09-28T04:47:14.064Z", "markets": {"crypto": "enabled", "fx": "enabled"}, "storage": "supabase"},
+    "boundary": "Anonymous production config/static/auth only; no production user trading and no exhaustive live-provider quote/history tests. Vercel management connector team access unavailable; no permissions changed or protected preview bypassed."
+  },
+  "unchanged": ["CoinGecko/Frankfurter sources", "JPY accounting and rounding", "signed quotes, CSRF and idempotency", "daily FX disclosure", "shared 500/month crypto chart guard", "existing user records", "JA/EN and progression"],
+  "paidPlanOrNewProvider": false,
+  "next": "User can reload production Markets. Record any physical-device report separately. Preserve expanded catalog and validators when fixing forward; never reset holdings or revert to an eight-symbol validator. Documentation-only follow-up commits require latest CI check but do not change the verified implementation."
+}
